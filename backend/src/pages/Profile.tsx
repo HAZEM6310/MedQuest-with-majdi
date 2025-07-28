@@ -171,6 +171,7 @@ export default function Profile() {
                   <SelectItem value="pinky">{t('themes.pinky')}</SelectItem>
                   <SelectItem value="lollipop">{t('themes.lollipop')}</SelectItem>
                   <SelectItem value="aesthetic">{t('themes.aesthetic')}</SelectItem>
+                  <SelectItem value="noir">Noir</SelectItem>
                 </SelectContent>
               </Select>
             </div>

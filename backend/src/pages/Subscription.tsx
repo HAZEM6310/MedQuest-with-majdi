@@ -94,24 +94,11 @@ export default function Subscription() {
 
       if (error) throw error;
 
-      // Here you would integrate with ClickToPay
-      // For now, we'll simulate a successful payment
-      toast.success(`Redirection vers ClickToPay pour ${plan.price} TND...`);
-      
-      // Simulate payment completion (in real app, this would be handled by ClickToPay webhook)
-      setTimeout(async () => {
-        await supabase
-          .from('subscriptions')
-          .update({ 
-            payment_status: 'completed',
-            is_active: true,
-            clicktopay_transaction_id: `sim_${Date.now()}`
-          })
-          .eq('id', data.id);
-          
-        toast.success("Paiement confirmé! Votre abonnement est maintenant actif.");
-        fetchActiveSubscription();
-      }, 2000);
+      // Redirect to payment link
+      toast.success(`Redirection vers la page de paiement...`);
+      window.location.href = 'https://sandbox.knct.me/DayrdFLTZ';
+      // After payment, user should be redirected back to a confirmation page in your app
+      // You should handle payment confirmation and subscription activation there
 
     } catch (error: any) {
       console.error('Subscription error:', error);

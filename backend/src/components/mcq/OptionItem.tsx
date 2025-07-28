@@ -82,11 +82,13 @@ export default function OptionItem({
   return (
     <Card 
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md group",
-        getStateStyles(),
-        !showResult && "hover:scale-[1.01]"
+        showResult ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:scale-[1.01]",
+        "transition-all duration-200 hover:shadow-md group",
+        getStateStyles()
       )}
       onClick={!showResult ? onSelect : undefined}
+      tabIndex={showResult ? -1 : 0}
+      aria-disabled={showResult}
     >
       <CardContent className="p-4">
         <div className="flex items-center gap-4">

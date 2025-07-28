@@ -45,6 +45,7 @@ export default function Quiz() {
 
   // Define currentQuestion based on currentQuestionIndex
   const currentQuestion = questions[currentQuestionIndex];
+  const isCurrentQuestionAnswered = answeredQuestions.has(currentQuestionIndex);
 
   useEffect(() => {
     if (!courseId) return;
@@ -574,14 +575,15 @@ export default function Quiz() {
       userAnswers={userAnswers}
       answeredQuestions={answeredQuestions}
       bookmarkedQuestions={bookmarkedQuestions}
-      showResult={showResult}
+      showResult={showResult || isCurrentQuestionAnswered}
       isCorrect={isCorrect}
       timer={timer}
       isPaused={isPaused}
       onOptionSelect={handleOptionSelect}
       onNext={handleNextQuestion}
       onPrevious={() => {
-        if (currentQuestionIndex > 0) {
+        // Prevent going back if the current question has been answered (showResult is true)
+        if (currentQuestionIndex > 0 && !answeredQuestions.has(currentQuestionIndex)) {
           setCurrentQuestionIndex(prev => prev - 1);
           const prevQuestion = questions[currentQuestionIndex - 1];
           const prevAnswers = userAnswers[prevQuestion.id] || [];

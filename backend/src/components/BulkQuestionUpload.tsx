@@ -29,6 +29,9 @@ interface BulkQuestion {
   option4_en: string;
   option4_fr: string;
   option4_correct: boolean;
+  option5_en: string;
+  option5_fr: string;
+  option5_correct: boolean;
 }
 
 interface BulkQuestionUploadProps {
@@ -73,7 +76,8 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
         'option1_en', 'option1_fr', 'option1_correct',
         'option2_en', 'option2_fr', 'option2_correct',
         'option3_en', 'option3_fr', 'option3_correct',
-        'option4_en', 'option4_fr', 'option4_correct'
+        'option4_en', 'option4_fr', 'option4_correct',
+        'option5_en', 'option5_fr', 'option5_correct'
       ];
 
       const missingHeaders = expectedHeaders.filter(h => !headers.includes(h));
@@ -107,7 +111,8 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
           question.option1_correct,
           question.option2_correct,
           question.option3_correct,
-          question.option4_correct
+          question.option4_correct,
+          question.option5_correct
         ].some(Boolean);
 
         if (!hasCorrectAnswer) {
@@ -189,6 +194,13 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
               text_en: questionData.option4_en,
               text_fr: questionData.option4_fr,
               is_correct: questionData.option4_correct
+            },
+            {
+              question_id: question.id,
+              text: questionData.option5_en,
+              text_en: questionData.option5_en,
+              text_fr: questionData.option5_fr,
+              is_correct: questionData.option5_correct
             }
           ];
 
@@ -229,7 +241,8 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
       'option1_en', 'option1_fr', 'option1_correct',
       'option2_en', 'option2_fr', 'option2_correct',
       'option3_en', 'option3_fr', 'option3_correct',
-      'option4_en', 'option4_fr', 'option4_correct'
+      'option4_en', 'option4_fr', 'option4_correct',
+      'option5_en', 'option5_fr', 'option5_correct'
     ];
 
     const sampleRow = [
@@ -240,7 +253,8 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
       'Skin', 'Peau', 'true',
       'Heart', 'Cœur', 'false',
       'Liver', 'Foie', 'false',
-      'Brain', 'Cerveau', 'false'
+      'Brain', 'Cerveau', 'false',
+      'Lungs', 'Poumons', 'false'
     ];
 
     const csvContent = [headers.join(','), sampleRow.join(',')].join('\n');

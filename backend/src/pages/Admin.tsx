@@ -76,9 +76,10 @@ export default function Admin() {
     explanation_en: "",
     explanation_fr: "",
   });
+  const [editingYear, setEditingYear] = useState<null | (MultilingualYear & { id: string })>(null);
 
   // Fetch data
-  const { data: years = [] } = useQuery({
+  const { data: yearsRaw = [] } = useQuery({
     queryKey: ['years'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -89,6 +90,9 @@ export default function Admin() {
       return data;
     }
   });
+  const years: (MultilingualYear & { id: string })[] = Array.isArray(yearsRaw)
+    ? yearsRaw.filter((y): y is MultilingualYear & { id: string } => !!y && typeof y === 'object' && 'id' in y)
+    : [];
 
   const { data: subjects = [] } = useQuery({
     queryKey: ['subjects'],
@@ -243,6 +247,40 @@ export default function Admin() {
         explanation_fr: "",
       });
       toast.success("Question added successfully");
+    },
+  });
+
+  const updateYearMutation = useMutation({
+    mutationFn: async (year) => {
+      const { error } = await supabase
+        .from('years')
+        .update({
+          name: year.name_en, // Legacy field
+          name_en: year.name_en,
+          name_fr: year.name_fr,
+          description: year.description_en, // Legacy field
+          description_en: year.description_en,
+          description_fr: year.description_fr,
+          order_index: year.order_index
+        })
+        .eq('id', year.id);
+      if (error) throw error;
+      return year;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['years'] });
+      toast.success('Year updated successfully');
+    },
+  });
+  const deleteYearMutation = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('years').delete().eq('id', id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['years'] });
+      toast.success('Year deleted successfully');
     },
   });
 
@@ -688,12 +726,56 @@ export default function Admin() {
         <TabsContent value="edit">
           <Card>
             <CardHeader>
-              <CardTitle>{t('admin.editContent')}</CardTitle>
+              <CardTitle>Edit Years</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                Content editing functionality coming soon - edit existing years, subjects, courses, and questions.
-              </p>
+              <div className="space-y-4">
+                {years.map((year) => (
+                  <div key={year.id} className="border rounded p-4 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
+                    <div className="flex-1">
+                      <div className="font-bold">{year.name_en} / {year.name_fr}</div>
+                      <div className="text-sm text-muted-foreground">{year.description_en} / {year.description_fr}</div>
+                      <div className="text-xs text-muted-foreground">Order: {year.order_index}</div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => year && setEditingYear(year)}>Edit</Button>
+                  </div>
+                ))}
+              </div>
+              {/* Edit Year Modal */}
+              {editingYear && (
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
+                    <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" onClick={() => setEditingYear(null)}>&times;</button>
+                    <h2 className="text-xl font-bold mb-4">Edit Year</h2>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <Label>Name (EN)</Label>
+                        <Input value={editingYear.name_en} onChange={e => setEditingYear({ ...editingYear, name_en: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Name (FR)</Label>
+                        <Input value={editingYear.name_fr} onChange={e => setEditingYear({ ...editingYear, name_fr: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <Label>Description (EN)</Label>
+                        <Textarea value={editingYear.description_en} onChange={e => setEditingYear({ ...editingYear, description_en: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Description (FR)</Label>
+                        <Textarea value={editingYear.description_fr} onChange={e => setEditingYear({ ...editingYear, description_fr: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="mb-2">
+                      <Label>Order</Label>
+                      <Input type="number" value={editingYear.order_index} onChange={e => setEditingYear({ ...editingYear, order_index: parseInt(e.target.value) })} />
+                    </div>
+                    <Button onClick={() => { if (editingYear) { updateYearMutation.mutate(editingYear); setEditingYear(null); } }} className="w-full mt-2">Save</Button>
+                    <Button onClick={() => { if (editingYear) { deleteYearMutation.mutate(editingYear.id); setEditingYear(null); } }} variant="destructive" className="w-full mt-2">Delete</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

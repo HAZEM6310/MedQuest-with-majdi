@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-type Theme = 'purple' | 'blue' | 'caramel' | 'pinky' | 'lollipop' | 'aesthetic';
+type Theme = 'purple' | 'blue' | 'caramel' | 'pinky' | 'lollipop' | 'aesthetic' | 'noir';
 
 interface ThemeContextType {
   theme: Theme;
@@ -52,6 +52,13 @@ const themeConfig = {
     accent: '230 40% 95%',
     sidebar: '230 40% 97%',
     sidebarAccent: '230 40% 91%',
+  },
+  noir: {
+    primary: '196 34% 24%', // #2B4951 (Teal blue)
+    secondary: '205 14% 48%', // #677E8A (Slate blue)
+    accent: '220 6% 69%', // #ABAFB5 (Muted gray)
+    sidebar: '188 48% 14%', // #122E34 (Teal-black)
+    sidebarAccent: '196 40% 8%', // #0E1D21 (Charcoal black)
   },
 };
 

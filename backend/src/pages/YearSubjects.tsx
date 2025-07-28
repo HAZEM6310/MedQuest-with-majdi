@@ -6,10 +6,22 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Year, Subject } from "@/types";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useTheme } from "@/hooks/useTheme";
+
+const themeConfig = {
+  purple: { primary: '250 45% 60%' },
+  blue: { primary: '200 45% 70%' },
+  caramel: { primary: '30 45% 50%' },
+  pinky: { primary: '340 45% 70%' },
+  lollipop: { primary: '174 50% 50%' },
+  aesthetic: {},
+  noir: { primary: '196 34% 24%' },
+};
 
 export default function YearSubjects() {
   const { yearId } = useParams<{ yearId: string }>();
   const { t, language } = useLanguage();
+  const { theme } = useTheme();
   const [year, setYear] = useState<Year | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,22 +106,24 @@ export default function YearSubjects() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {subjects.map((subject) => (
-            <Card key={subject.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BookOpen className="h-8 w-8 text-secondary" />
+            <Link to={`/subjects/${subject.id}`} key={subject.id} style={{ textDecoration: 'none' }}>
+              <div
+                className={`custom-subject-card card ${theme === 'aesthetic' ? 'aesthetic-card' : ''}`}
+                style={{
+                  ...(theme !== 'aesthetic' && themeConfig[theme] && themeConfig[theme].primary
+                    ? { background: `hsl(${themeConfig[theme].primary})` }
+                    : {}),
+                  color: '#4B5563'
+                }}
+              >
+                <div className="first-content w-full h-full flex items-center justify-center font-bold text-center">
+                  <span className="w-full text-center">{getLocalizedText(subject.name_en, subject.name_fr, subject.name)}</span>
                 </div>
-                <CardTitle className="text-xl">{getLocalizedText(subject.name_en, subject.name_fr, subject.name)}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <p className="text-muted-foreground mb-4">{getLocalizedText(subject.description_en, subject.description_fr, subject.description)}</p>
-                <Link to={`/subjects/${subject.id}`}>
-                  <Button className="w-full bg-secondary hover:bg-secondary/90">
-                    {t('ui.explore')}
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                <div className="second-content w-full h-full flex items-center justify-center font-bold text-center">
+                  <span className="w-full text-center">Start</span>
+                </div>
+              </div>
+            </Link>
           ))}
         </div>
       )}

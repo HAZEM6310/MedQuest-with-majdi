@@ -81,8 +81,8 @@ export default function QcmBody({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-background">
-      <div className="container max-w-4xl py-8 space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/20 to-background">
+      <div className="container max-w-4xl py-8 space-y-6 flex flex-col items-center justify-center">
         
         {/* Header */}
         <Card className="border-primary/20 shadow-lg bg-background/50 backdrop-blur-sm">
