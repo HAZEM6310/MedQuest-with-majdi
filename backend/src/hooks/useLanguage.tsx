@@ -20,6 +20,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const savedLanguage = localStorage.getItem('medquest-language') as Language;
     if (savedLanguage && (savedLanguage === 'fr' || savedLanguage === 'en')) {
       setLanguage(savedLanguage);
+    } else {
+      // Set French as default if no language is saved
+      setLanguage('fr');
+      localStorage.setItem('medquest-language', 'fr');
     }
   }, []);
 

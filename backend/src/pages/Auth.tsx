@@ -108,32 +108,36 @@ export default function Auth() {
   );
 
   return (
-    <div className="container flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] py-8">
-      <div className="mx-auto flex flex-col justify-center space-y-6 w-full max-w-md">
-        <div className="flex flex-col space-y-2 text-center items-center">
-          <GraduationCap className="h-10 w-10 text-secondary" />
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t("home.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">{t("home.subtitle")}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center">
+            <GraduationCap className="h-12 w-12 text-secondary" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              {t("home.title")}
+            </h1>
+            <p className="text-sm text-gray-600">{t("home.subtitle")}</p>
+          </div>
         </div>
 
         <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
             <TabsTrigger value="signin">{t("auth.login")}</TabsTrigger>
             <TabsTrigger value="signup">{t("auth.signup")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="signin">
-            <Card>
+            <Card className="shadow-lg border-0">
               <form onSubmit={handleSignIn}>
-                <CardHeader>
-                  <CardTitle>{t("auth.login")}</CardTitle>
-                  <CardDescription>Access your MedQuest account</CardDescription>
+                <CardHeader className="text-center pb-6">
+                  <CardTitle className="text-xl font-semibold">{t("auth.login")}</CardTitle>
+                  <CardDescription className="text-gray-600">Access your MedQuest account</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="signinEmail">{t("auth.email")}</Label>
+                    <Label htmlFor="signinEmail" className="text-sm font-medium">{t("auth.email")}</Label>
                     <Input
                       id="signinEmail"
                       type="email"
@@ -142,10 +146,11 @@ export default function Auth() {
                       onChange={(e) => setSignInEmail(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signinPassword">{t("auth.password")}</Label>
+                    <Label htmlFor="signinPassword" className="text-sm font-medium">{t("auth.password")}</Label>
                     <Input
                       id="signinPassword"
                       type="password"
@@ -153,14 +158,17 @@ export default function Auth() {
                       onChange={(e) => setSignInPassword(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11"
                     />
                   </div>
-                  <GoogleButton />
+                  <div className="pt-2">
+                    <GoogleButton />
+                  </div>
                 </CardContent>
-                <CardFooter className="flex flex-col space-y-4">
+                <CardFooter className="flex flex-col space-y-4 pt-6">
                   <Button
                     type="submit"
-                    className="w-full bg-secondary hover:bg-secondary/90"
+                    className="w-full h-11 bg-secondary hover:bg-secondary/90 font-medium"
                     disabled={isLoading}
                   >
                     {isLoading ? t("loading") : t("auth.login")}
@@ -168,7 +176,7 @@ export default function Auth() {
                   <Button
                     asChild
                     variant="outline"
-                    className="w-full mt-2"
+                    className="w-full h-11"
                   >
                     <Link to="/enter-email">Forgot my password?</Link>
                   </Button>
@@ -178,15 +186,15 @@ export default function Auth() {
           </TabsContent>
 
           <TabsContent value="signup">
-            <Card>
+            <Card className="shadow-lg border-0">
               <form onSubmit={handleSignUp}>
-                <CardHeader>
-                  <CardTitle>{t("auth.signup")}</CardTitle>
-                  <CardDescription>Create your MedQuest account</CardDescription>
+                <CardHeader className="text-center pb-6">
+                  <CardTitle className="text-xl font-semibold">{t("auth.signup")}</CardTitle>
+                  <CardDescription className="text-gray-600">Create your MedQuest account</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">{t("auth.fullName")}</Label>
+                    <Label htmlFor="fullName" className="text-sm font-medium">{t("auth.fullName")}</Label>
                     <Input
                       id="fullName"
                       placeholder="Your full name"
@@ -194,10 +202,11 @@ export default function Auth() {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signupEmail">{t("auth.email")}</Label>
+                    <Label htmlFor="signupEmail" className="text-sm font-medium">{t("auth.email")}</Label>
                     <Input
                       id="signupEmail"
                       type="email"
@@ -206,10 +215,11 @@ export default function Auth() {
                       onChange={(e) => setSignUpEmail(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signupPassword">{t("auth.password")}</Label>
+                    <Label htmlFor="signupPassword" className="text-sm font-medium">{t("auth.password")}</Label>
                     <Input
                       id="signupPassword"
                       type="password"
@@ -217,14 +227,17 @@ export default function Auth() {
                       onChange={(e) => setSignUpPassword(e.target.value)}
                       required
                       disabled={isLoading}
+                      className="h-11"
                     />
                   </div>
-                  <GoogleButton />
+                  <div className="pt-2">
+                    <GoogleButton />
+                  </div>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="pt-6">
                   <Button
                     type="submit"
-                    className="w-full bg-secondary hover:bg-secondary/90"
+                    className="w-full h-11 bg-secondary hover:bg-secondary/90 font-medium"
                     disabled={isLoading}
                   >
                     {isLoading ? t("loading") : t("auth.signup")}

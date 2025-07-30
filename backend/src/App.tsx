@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useParams, useLocation } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import Navbar from "@/components/layout/Navbar";
@@ -20,6 +20,7 @@ import Courses from "./pages/Courses";
 import Progress from "./pages/Progress";
 import Achievements from "./pages/Achievements";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import EnterEmail from "./pages/EnterEmail";
 import ResetPassword from "./pages/ResetPassword";
@@ -69,59 +70,7 @@ function App() {
           <AuthProvider>
             <TooltipProvider>
               <BrowserRouter>
-                <AppLayout>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/register" element={<Auth />} />
-                    <Route path="/courses" element={<Courses />} />
-                    <Route path="/progress" element={<Progress />} />
-                    <Route path="/achievements" element={<Achievements />} />
-                    <Route 
-                      path="/subscription" 
-                      element={
-                        <ProtectedRoute requireSubscription={false}>
-                          <Subscription />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/year/:yearId/subjects" 
-                      element={<YearSubjects />} 
-                    />
-                    <Route 
-                      path="/subjects/:subjectId" 
-                      element={<SubjectCourses />} 
-                    />
-                    <Route 
-                      path="/courses/:courseId" 
-                      element={<CourseDetail />} 
-                    />
-                    <Route 
-                      path="/courses/:courseId/quiz" 
-                      element={<QuizProtectedRoute />} 
-                    />
-                    <Route 
-                      path="/profile" 
-                      element={
-                        <ProtectedRoute requireSubscription={false}>
-                          <Profile />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route 
-                      path="/admin" 
-                      element={
-                        <ProtectedRoute requireSubscription={false}>
-                          <Admin />
-                        </ProtectedRoute>
-                      } 
-                    />
-                    <Route path="/enter-email" element={<EnterEmail />} />
-                    <Route path="/reset-password/:token" element={<ResetPassword />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </AppLayout>
+                <MainRouter />
                 <Toaster />
               </BrowserRouter>
             </TooltipProvider>
@@ -129,6 +78,74 @@ function App() {
         </LanguageProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function MainRouter() {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/register" element={<Auth />} />
+        <Route path="/enter-email" element={<EnterEmail />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/courses" element={<Courses />} />
+        <Route path="/progress" element={<Progress />} />
+        <Route path="/achievements" element={<Achievements />} />
+        <Route 
+          path="/subscription" 
+          element={
+            <ProtectedRoute requireSubscription={false}>
+              <Subscription />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/year/:yearId/subjects" 
+          element={<YearSubjects />} 
+        />
+        <Route 
+          path="/subjects/:subjectId" 
+          element={<SubjectCourses />} 
+        />
+        <Route 
+          path="/courses/:courseId" 
+          element={<CourseDetail />} 
+        />
+        <Route 
+          path="/courses/:courseId/quiz" 
+          element={<QuizProtectedRoute />} 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute requireSubscription={false}>
+              <Profile />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute requireSubscription={false}>
+              <Admin />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
   );
 }
 

@@ -13,7 +13,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BulkQuestionUpload from "@/components/BulkQuestionUpload";
-
+ import { useEffect } from "react";
 interface MultilingualYear {
   name_en: string;
   name_fr: string;
@@ -50,6 +50,112 @@ interface NewQuestion {
 }
 
 export default function Admin() {
+  // State for Edit Tab selection and editing
+  const [selectedYearId, setSelectedYearId] = useState("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedQuestionId, setSelectedQuestionId] = useState("");
+  const [editQuestion, setEditQuestion] = useState(null);
+
+  // Fetch questions for selected course
+  const { data: questions = [] } = useQuery({
+    queryKey: ["questions", selectedCourseId],
+    queryFn: async () => {
+      if (!selectedCourseId) return [];
+      const { data, error } = await supabase
+        .from("questions")
+        .select("*, options(*)")
+        .eq("course_id", selectedCourseId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedCourseId,
+  });
+
+  // Find selected question
+  const selectedQuestion = questions.find(q => q.id === selectedQuestionId);
+
+  // When selectedQuestion changes, update editQuestion state
+ 
+  useEffect(() => {
+    if (selectedQuestion) {
+      setEditQuestion({
+        text_en: selectedQuestion.text_en || "",
+        text_fr: selectedQuestion.text_fr || "",
+        explanation_en: selectedQuestion.explanation_en || "",
+        explanation_fr: selectedQuestion.explanation_fr || "",
+        options: selectedQuestion.options || [],
+        id: selectedQuestion.id,
+      });
+    } else {
+      setEditQuestion(null);
+    }
+  }, [selectedQuestionId, questions]);
+
+  // Option handlers for editQuestion
+  const handleEditOptionChange = (idx, field, value) => {
+    if (!editQuestion) return;
+    const updated = [...editQuestion.options];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setEditQuestion({ ...editQuestion, options: updated });
+  };
+  const handleEditOptionCorrectChange = (idx, isCorrect) => {
+    if (!editQuestion) return;
+    const updated = [...editQuestion.options];
+    updated[idx] = { ...updated[idx], is_correct: isCorrect };
+    setEditQuestion({ ...editQuestion, options: updated });
+  };
+
+  // Save and Delete handlers
+  const saveEditMutation = useMutation({
+    mutationFn: async (q) => {
+      // Update question
+      const { error: qErr } = await supabase
+        .from("questions")
+        .update({
+          text_en: q.text_en,
+          text_fr: q.text_fr,
+          explanation_en: q.explanation_en,
+          explanation_fr: q.explanation_fr,
+        })
+        .eq("id", q.id);
+      if (qErr) throw qErr;
+      // Update options
+      for (const opt of q.options) {
+        await supabase
+          .from("options")
+          .update({
+            text_en: opt.text_en,
+            text_fr: opt.text_fr,
+            is_correct: opt.is_correct,
+          })
+          .eq("id", opt.id);
+      }
+      return q;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["questions", selectedCourseId] });
+      toast.success("Question updated successfully");
+    },
+  });
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async (id) => {
+      await supabase.from("options").delete().eq("question_id", id);
+      await supabase.from("questions").delete().eq("id", id);
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["questions", selectedCourseId] });
+      setSelectedQuestionId("");
+      toast.success("Question deleted successfully");
+    },
+  });
+  const handleSaveEditQuestion = () => {
+    if (editQuestion) saveEditMutation.mutate(editQuestion);
+  };
+  const handleDeleteQuestion = () => {
+    if (editQuestion) deleteQuestionMutation.mutate(editQuestion.id);
+  };
   const { t } = useLanguage();
   const queryClient = useQueryClient();
 
@@ -722,60 +828,119 @@ export default function Admin() {
           </Card>
         </TabsContent>
 
-        {/* Edit Content Tab */}
+        {/* Edit Content Tab - Redone for Question Editing */}
         <TabsContent value="edit">
           <Card>
             <CardHeader>
-              <CardTitle>Edit Years</CardTitle>
+              <CardTitle>Edit Questions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {years.map((year) => (
-                  <div key={year.id} className="border rounded p-4 flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
-                    <div className="flex-1">
-                      <div className="font-bold">{year.name_en} / {year.name_fr}</div>
-                      <div className="text-sm text-muted-foreground">{year.description_en} / {year.description_fr}</div>
-                      <div className="text-xs text-muted-foreground">Order: {year.order_index}</div>
-                    </div>
-                    <Button size="sm" variant="outline" onClick={() => year && setEditingYear(year)}>Edit</Button>
+                {/* Step 1: Select Year */}
+                <div>
+                  <Label>Select Year</Label>
+                  <Select value={selectedYearId} onValueChange={setSelectedYearId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map(year => (
+                        <SelectItem key={year.id} value={year.id}>{year.name_en || year.name} / {year.name_fr || year.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Step 2: Select Subject */}
+                {selectedYearId && (
+                  <div>
+                    <Label>Select Subject</Label>
+                    <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {subjects.filter(s => s.year_id === selectedYearId).map(subject => (
+                          <SelectItem key={subject.id} value={subject.id}>{subject.name_en || subject.name} / {subject.name_fr || subject.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
-              </div>
-              {/* Edit Year Modal */}
-              {editingYear && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-                  <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
-                    <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600" onClick={() => setEditingYear(null)}>&times;</button>
-                    <h2 className="text-xl font-bold mb-4">Edit Year</h2>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
+                )}
+                {/* Step 3: Select Course */}
+                {selectedSubjectId && (
+                  <div>
+                    <Label>Select Course</Label>
+                    <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose course" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.filter(c => c.subject_id === selectedSubjectId).map(course => (
+                          <SelectItem key={course.id} value={course.id}>{course.title_en || course.title} / {course.title_fr || course.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {/* Step 4: Select Question */}
+                {selectedCourseId && (
+                  <div>
+                    <Label>Select Question</Label>
+                    <Select value={selectedQuestionId} onValueChange={setSelectedQuestionId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose question" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {questions.filter(q => q.course_id === selectedCourseId).map((question, idx) => (
+                          <SelectItem key={question.id} value={question.id}>Question {idx + 1}: {question.text_en?.slice(0, 40) || question.text?.slice(0, 40)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {/* Step 5: Edit Question Form */}
+                {selectedQuestion && (
+                  <div className="mt-6 border rounded p-4">
+                    <h3 className="font-bold mb-2">Edit Question</h3>
+                    <div className="grid grid-cols-2 gap-4 mb-2">
                       <div>
-                        <Label>Name (EN)</Label>
-                        <Input value={editingYear.name_en} onChange={e => setEditingYear({ ...editingYear, name_en: e.target.value })} />
+                        <Label>Text (EN)</Label>
+                        <Textarea value={editQuestion.text_en} onChange={e => setEditQuestion({ ...editQuestion, text_en: e.target.value })} />
                       </div>
                       <div>
-                        <Label>Name (FR)</Label>
-                        <Input value={editingYear.name_fr} onChange={e => setEditingYear({ ...editingYear, name_fr: e.target.value })} />
+                        <Label>Text (FR)</Label>
+                        <Textarea value={editQuestion.text_fr} onChange={e => setEditQuestion({ ...editQuestion, text_fr: e.target.value })} />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="grid grid-cols-2 gap-4 mb-2">
                       <div>
-                        <Label>Description (EN)</Label>
-                        <Textarea value={editingYear.description_en} onChange={e => setEditingYear({ ...editingYear, description_en: e.target.value })} />
+                        <Label>Explanation (EN)</Label>
+                        <Textarea value={editQuestion.explanation_en} onChange={e => setEditQuestion({ ...editQuestion, explanation_en: e.target.value })} />
                       </div>
                       <div>
-                        <Label>Description (FR)</Label>
-                        <Textarea value={editingYear.description_fr} onChange={e => setEditingYear({ ...editingYear, description_fr: e.target.value })} />
+                        <Label>Explanation (FR)</Label>
+                        <Textarea value={editQuestion.explanation_fr} onChange={e => setEditQuestion({ ...editQuestion, explanation_fr: e.target.value })} />
                       </div>
                     </div>
                     <div className="mb-2">
-                      <Label>Order</Label>
-                      <Input type="number" value={editingYear.order_index} onChange={e => setEditingYear({ ...editingYear, order_index: parseInt(e.target.value) })} />
+                      <Label>Options</Label>
+                      <div className="space-y-2">
+                        {editQuestion.options.map((option, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <Checkbox checked={option.is_correct} onCheckedChange={checked => handleEditOptionCorrectChange(idx, !!checked)} />
+                            <Input value={option.text_en} onChange={e => handleEditOptionChange(idx, 'text_en', e.target.value)} placeholder={`Option ${String.fromCharCode(65 + idx)} (EN)`} />
+                            <Input value={option.text_fr} onChange={e => handleEditOptionChange(idx, 'text_fr', e.target.value)} placeholder={`Option ${String.fromCharCode(65 + idx)} (FR)`} />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <Button onClick={() => { if (editingYear) { updateYearMutation.mutate(editingYear); setEditingYear(null); } }} className="w-full mt-2">Save</Button>
-                    <Button onClick={() => { if (editingYear) { deleteYearMutation.mutate(editingYear.id); setEditingYear(null); } }} variant="destructive" className="w-full mt-2">Delete</Button>
+                    <div className="flex gap-2 mt-4">
+                      <Button onClick={handleSaveEditQuestion} className="w-full">Save</Button>
+                      <Button onClick={handleDeleteQuestion} variant="destructive" className="w-full">Delete</Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
