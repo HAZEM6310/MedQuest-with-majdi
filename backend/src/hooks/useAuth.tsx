@@ -11,7 +11,7 @@ interface AuthContextType {
   profile: Profile | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, voucherCode?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   checkDeviceSession: () => Promise<boolean>;
@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, voucherCode?: string) => {
     setIsLoading(true);
     try {
       // Clean up existing state
@@ -184,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
+            voucher_code: voucherCode || null,
           },
         },
       });
@@ -198,6 +199,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .update({ is_admin: true })
             .eq('id', data.user!.id);
         }, 1000);
+      }
+
+      // If a voucher code was provided, store it locally for now
+      if (voucherCode && data.user) {
+        // Store voucher association in localStorage for demo purposes
+        // In production, this would be stored in the database
+        const voucherData = {
+          userId: data.user.id,
+          voucherCode: voucherCode.toUpperCase(),
+          linkedAt: new Date().toISOString(),
+        };
+        
+        const existingVouchers = JSON.parse(localStorage.getItem('voucherLinks') || '[]');
+        existingVouchers.push(voucherData);
+        localStorage.setItem('voucherLinks', JSON.stringify(existingVouchers));
+        
+        console.log(`Voucher ${voucherCode} linked to user ${data.user.id}`);
       }
     } finally {
       setIsLoading(false);

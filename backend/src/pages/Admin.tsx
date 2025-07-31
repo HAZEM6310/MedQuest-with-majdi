@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { PlusCircle, Trash2, BookOpen, GraduationCap, FileText, Edit, Upload } from "lucide-react";
+import { PlusCircle, Trash2, BookOpen, GraduationCap, FileText, Edit, Upload, CreditCard } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BulkQuestionUpload from "@/components/BulkQuestionUpload";
+import { VoucherManagement } from "@/components/VoucherManagement";
  import { useEffect } from "react";
 interface MultilingualYear {
   name_en: string;
@@ -429,7 +430,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="content" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="content">{t('admin.manageContent')}</TabsTrigger>
           <TabsTrigger value="courses">Course Sections</TabsTrigger>
           <TabsTrigger value="questions">{t('admin.addQuestion')}</TabsTrigger>
@@ -439,6 +440,10 @@ export default function Admin() {
           </TabsTrigger>
           <TabsTrigger value="edit">{t('admin.editContent')}</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="vouchers">
+            <CreditCard className="h-4 w-4 mr-2" />
+            Vouchers
+          </TabsTrigger>
         </TabsList>
 
         {/* Content Management Tab */}
@@ -957,6 +962,11 @@ export default function Admin() {
               </p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Voucher Management Tab */}
+        <TabsContent value="vouchers">
+          <VoucherManagement />
         </TabsContent>
       </Tabs>
     </div>

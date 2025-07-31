@@ -205,180 +205,33 @@ export function VoucherManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {vouchers.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              {t.noVouchers}
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {/* Voucher Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {vouchers.map((voucher) => (
-                  <Card 
-                    key={voucher.id}
-                    className={`cursor-pointer transition-all ${
-                      selectedVoucher?.id === voucher.id 
-                        ? 'ring-2 ring-blue-500 bg-blue-50' 
-                        : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedVoucher(voucher)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-semibold text-lg">{voucher.code}</h3>
-                            {voucher.label && (
-                              <p className="text-sm text-muted-foreground">{voucher.label}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={voucher.isActive ? 'default' : 'secondary'}>
-                              {voucher.isActive ? t.active : t.inactive}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-blue-600">
-                              {voucher.credits}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {t.totalCredits}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-green-600">
-                              {voucher.totalUsers || 0}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {t.totalUsers}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2 border-t">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyCode(voucher.code);
-                            }}
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            {t.copyCode}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleStatus(voucher);
-                            }}
-                            disabled={loading}
-                          >
-                            {voucher.isActive ? (
-                              <ToggleRight className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <ToggleLeft className="h-4 w-4 text-gray-400" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Voucher Statistics */}
-              {selectedVoucher && (
-                <div className="mt-6 p-6 bg-muted rounded-lg">
-                  <h4 className="font-semibold mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    {selectedVoucher.code} - {t.voucherStats}
-                  </h4>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {selectedVoucher.credits}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t.totalCredits}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {selectedVoucher.totalUsers || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t.totalUsers}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {selectedVoucher.totalMonthsSold || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t.totalPayments}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {formatCurrency(selectedVoucher.totalRevenue)}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t.totalRevenue}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">
-                        <Badge variant={selectedVoucher.isActive ? 'default' : 'secondary'}>
-                          {selectedVoucher.isActive ? t.active : t.inactive}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Status
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Simulate Payment Button */}
-                  <div className="flex justify-center gap-4">
-                    <Button 
-                      onClick={handleSimulatePayment}
-                      disabled={loading}
-                      variant="outline"
-                    >
-                      <DollarSign className="h-4 w-4 mr-2" />
-                      {t.simulatePayment} (+3 {t.monthsPaid})
-                    </Button>
-                    <Button 
-                      onClick={() => handleToggleStatus(selectedVoucher)}
-                      disabled={loading}
-                      variant="outline"
-                    >
-                      {selectedVoucher.isActive ? (
-                        <ToggleLeft className="h-4 w-4 mr-2" />
-                      ) : (
-                        <ToggleRight className="h-4 w-4 mr-2" />
-                      )}
-                      {t.toggleStatus}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {selectedVoucher && !voucherStats && (
-                <p className="text-center text-muted-foreground py-4">
-                  {t.selectVoucher}
-                </p>
-              )}
-            </div>
-          )}
-        </CardContent>
+  {vouchers.length === 0 ? (
+    <p className="text-muted-foreground text-center py-4">
+      No vouchers available
+    </p>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="min-w-full border border-gray-200 rounded-lg">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="px-4 py-2 text-left">Code</th>
+            <th className="px-4 py-2 text-left">Users</th>
+            <th className="px-4 py-2 text-left">Credits</th>
+          </tr>
+        </thead>
+        <tbody>
+          {vouchers.map((voucher) => (
+            <tr key={voucher.id} className="border-b">
+              <td className="px-4 py-2 font-semibold">{voucher.code}</td>
+              <td className="px-4 py-2">{voucher.number_of_users ?? voucher.totalUsers ?? 0}</td>
+              <td className="px-4 py-2">{voucher.total_credits ?? voucher.credits ?? 0}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</CardContent>
       </Card>
     </div>
   );

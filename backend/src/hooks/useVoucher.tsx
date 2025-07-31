@@ -57,17 +57,12 @@ export function useVoucher() {
       if (!data) return [];
 
       const voucherData: Voucher[] = data.map(item => ({
-        id: item.voucher_id,
-        code: item.voucher_code,
-        label: item.voucher_label || undefined,
-        credits: item.total_credits,
-        createdAt: item.created_at,
-        updatedAt: item.created_at, // Using created_at as fallback
-        isActive: item.is_active,
-        totalUsers: item.total_users,
-        totalMonthsSold: item.total_months_sold,
-        totalRevenue: item.total_revenue,
-      }));
+  id: item.voucher_id,
+  code: item.code,
+  label: item.label || undefined,
+  number_of_users: item.number_of_users ?? 0,
+  total_credits: item.total_credits ?? 0,
+}));
 
       setVouchers(voucherData);
       return voucherData;
