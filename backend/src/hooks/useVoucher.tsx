@@ -31,28 +31,30 @@ export function useVoucher() {
       console.table(data); // Log data in table format for better readability
 
       const voucherData: Voucher[] = data.map(item => {
-        // Default credit value to 1 if everything else is null/zero
-        const creditCount = item.credit_count !== null && item.credit_count !== undefined 
-          ? item.credit_count 
-          : 0;
-          
-        const totalCredits = item.total_credits ?? 0;
-        const userCount = item.total_users ?? 0;
-        
-        console.log(`[${timestamp}] HAZEM6310: Voucher ${item.voucher_code}: credit_count=${creditCount}, users=${userCount}, total_credits=${totalCredits}`);
-        
-        return {
-          id: item.voucher_id,
-          code: item.voucher_code,
-          label: item.voucher_label || undefined,
-          number_of_users: userCount,  
-          total_credits: totalCredits,
-          totalMonthsSold: item.total_months_sold ?? 0,
-          totalRevenue: item.total_revenue ?? 0,
-          isActive: item.is_active,
-          createdAt: item.created_at,
-          updatedAt: item.created_at,
-          credits: creditCount, // This is the value shown in the UI
+  // Default credit value to 1 if everything else is null/zero
+  const creditCount = item.credit_count !== null && item.credit_count !== undefined 
+    ? item.credit_count 
+    : 0;
+    
+  const totalCredits = item.total_credits ?? 0;
+  
+  // Prioritize the new user_count field, fall back to total_users if necessary
+  const userCount = item.user_count ?? item.total_users ?? 0;
+  
+  console.log(`[${timestamp}] HAZEM6310: Voucher ${item.voucher_code}: credit_count=${creditCount}, users=${userCount}, total_credits=${totalCredits}`);
+  
+  return {
+    id: item.voucher_id,
+    code: item.voucher_code,
+    label: item.voucher_label || undefined,
+    number_of_users: userCount,  // Map from the user_count field
+    total_credits: totalCredits,
+    totalMonthsSold: item.total_months_sold ?? 0,
+    totalRevenue: item.total_revenue ?? 0,
+    isActive: item.is_active,
+    createdAt: item.created_at,
+    updatedAt: item.created_at,
+    credits: creditCount, // This is the value shown in the UI
         };
       });
 

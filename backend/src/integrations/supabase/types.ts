@@ -23,12 +23,15 @@ export interface VoucherStats {
   voucher_id: string;
   code: string;
   label?: string;
-  total_credits: number;
-  number_of_users: number;
   is_active: boolean;
+  total_users: number;
+  total_credits: number;
+  credit_count: number;
   total_months_sold: number;
   total_revenue: number;
   created_at: string;
+  user_count?: number; // Add this new field
+  // other fields...
 }
 export type Database = {
   public: {

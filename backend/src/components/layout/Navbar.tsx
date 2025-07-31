@@ -107,35 +107,34 @@ export default function Navbar() {
         {/* Controls */}
         <div className="flex items-center space-x-4">
           {/* Language Switcher */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              asChild
-              aria-haspopup="listbox"
-              aria-expanded="false"
-              aria-label={t("nav.language")}
-            >
-              <Button variant="ghost" size="sm">
-                <Globe className="h-4 w-4 mr-2" aria-hidden="true" />
-                {language.toUpperCase()}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent role="listbox">
-              <DropdownMenuItem
-                role="option"
-                onClick={() => setLanguage("fr")}
-                tabIndex={0}
-              >
-                Français
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                role="option"
-                onClick={() => setLanguage("en")}
-                tabIndex={0}
-              >
-                English
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+<DropdownMenu>
+  <DropdownMenuTrigger
+    asChild
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-label={t("nav.language")}
+  >
+    <Button variant="ghost" size="sm">
+      {language === "fr" ? "🇫🇷" : "🇬🇧"}
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent role="listbox">
+    <DropdownMenuItem
+      role="option"
+      onClick={() => setLanguage("fr")}
+      tabIndex={0}
+    >
+      🇫🇷 Français
+    </DropdownMenuItem>
+    <DropdownMenuItem
+      role="option"
+      onClick={() => setLanguage("en")}
+      tabIndex={0}
+    >
+      🇬🇧 English
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
 
           {/* Theme Switcher */}
           <DropdownMenu>
