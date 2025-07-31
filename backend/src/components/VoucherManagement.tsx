@@ -223,8 +223,8 @@ export function VoucherManagement() {
           {vouchers.map((voucher) => (
             <tr key={voucher.id} className="border-b">
               <td className="px-4 py-2 font-semibold">{voucher.code}</td>
-              <td className="px-4 py-2">{voucher.number_of_users ?? voucher.totalUsers ?? 0}</td>
-              <td className="px-4 py-2">{voucher.total_credits ?? voucher.credits ?? 0}</td>
+              <td className="px-4 py-2">{voucher.number_of_users}</td>
+<td className="px-4 py-2">{voucher.total_credits}</td>
             </tr>
           ))}
         </tbody>

@@ -5,7 +5,31 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[]
+export interface Voucher {
+  id: string;
+  code: string;
+  label?: string;
+  number_of_users: number;
+  total_credits: number;
+  totalMonthsSold: number;
+  totalRevenue: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  credits?: number; // compatibility for legacy code
+}
 
+export interface VoucherStats {
+  voucher_id: string;
+  code: string;
+  label?: string;
+  total_credits: number;
+  number_of_users: number;
+  is_active: boolean;
+  total_months_sold: number;
+  total_revenue: number;
+  created_at: string;
+}
 export type Database = {
   public: {
     Tables: {

@@ -1,3 +1,4 @@
+// FIXED: Use `id` instead of `user_id` for profiles table inserts/updates!
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
@@ -19,7 +20,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Admin email - change this to your desired admin email
 const ADMIN_EMAIL = 'admin@medquest.com';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -29,15 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
-        
         if (session?.user) {
-          // Defer profile fetching to prevent deadlock
           setTimeout(async () => {
             await fetchProfile(session.user.id);
           }, 0);
@@ -48,7 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -86,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ctx!.textBaseline = 'top';
     ctx!.font = '14px Arial';
     ctx!.fillText('Device fingerprint', 2, 2);
-    
+
     return btoa(
       navigator.userAgent +
       navigator.language +
@@ -100,18 +95,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return false;
 
     const fingerprint = generateDeviceFingerprint();
-    
+
     try {
-      // Check if user has an active session
       const { data: existingSession } = await supabase
         .from('device_sessions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id) // device_sessions uses user_id
         .eq('is_active', true)
         .single();
 
       if (existingSession) {
-        // If same device, update last_active
         if (existingSession.device_fingerprint === fingerprint) {
           await supabase
             .from('device_sessions')
@@ -119,11 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .eq('id', existingSession.id);
           return true;
         } else {
-          // Different device - block access
           return false;
         }
       } else {
-        // No active session, create one
         await supabase
           .from('device_sessions')
           .upsert({
@@ -143,25 +134,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Clean up existing state
       cleanupAuthState();
-      
-      // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-      }
-      
+      } catch (err) {}
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
       if (error) throw error;
-      
       if (data.user) {
-        // Force page reload for clean state
         window.location.href = '/';
       }
     } finally {
@@ -172,11 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, fullName: string, voucherCode?: string) => {
     setIsLoading(true);
     try {
-      // Clean up existing state
       cleanupAuthState();
-      
+
       const redirectUrl = `${window.location.origin}/`;
-      
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -188,10 +169,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         },
       });
-      
+
       if (error) throw error;
 
-      // If this is the admin email, automatically set admin privileges
+      // Insert profile row using `id` (NOT user_id)
+      if (data.user) {
+        await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: fullName,
+            voucher_code: voucherCode || null,
+            credits: 0
+          });
+      }
+
       if (email === ADMIN_EMAIL && data.user) {
         setTimeout(async () => {
           await supabase
@@ -201,21 +194,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }, 1000);
       }
 
-      // If a voucher code was provided, store it locally for now
       if (voucherCode && data.user) {
-        // Store voucher association in localStorage for demo purposes
-        // In production, this would be stored in the database
         const voucherData = {
           userId: data.user.id,
           voucherCode: voucherCode.toUpperCase(),
           linkedAt: new Date().toISOString(),
         };
-        
+
         const existingVouchers = JSON.parse(localStorage.getItem('voucherLinks') || '[]');
         existingVouchers.push(voucherData);
         localStorage.setItem('voucherLinks', JSON.stringify(existingVouchers));
-        
-        console.log(`Voucher ${voucherCode} linked to user ${data.user.id}`);
       }
     } finally {
       setIsLoading(false);
@@ -224,23 +212,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      // Clean up existing state
       cleanupAuthState();
-      
-      // Attempt global sign out first
       try {
         await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Continue even if this fails
-      }
-      
+      } catch (err) {}
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`
         }
       });
-      
       if (error) throw error;
     } catch (error) {
       console.error('Google sign in error:', error);
@@ -250,25 +231,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clean up auth state
       cleanupAuthState();
-      
-      // Deactivate device session
       if (user) {
         await supabase
           .from('device_sessions')
           .update({ is_active: false })
-          .eq('user_id', user.id);
+          .eq('user_id', user.id); // device_sessions uses user_id
       }
-      
-      // Attempt global sign out
       try {
         await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        // Ignore errors
-      }
-      
-      // Force page reload for clean state
+      } catch (err) {}
       window.location.href = '/auth';
     } catch (error) {
       console.error('Sign out error:', error);

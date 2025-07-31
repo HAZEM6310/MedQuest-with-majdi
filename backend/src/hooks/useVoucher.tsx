@@ -3,40 +3,6 @@ import { Voucher, VoucherStats } from '@/types/voucher';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Enhanced interfaces for Supabase integration
-interface VoucherValidationResult {
-  voucher_id: string | null;
-  voucher_code: string;
-  voucher_label: string | null;
-  is_valid: boolean;
-  message: string;
-}
-
-interface VoucherCreationResult {
-  success: boolean;
-  message: string;
-  voucher_id: string | null;
-}
-
-interface VoucherApplicationResult {
-  success: boolean;
-  message: string;
-  credits_added: number;
-  bonus_days_granted: number;
-}
-
-interface VoucherStatsResult {
-  voucher_id: string;
-  voucher_code: string;
-  voucher_label: string | null;
-  total_credits: number;
-  is_active: boolean;
-  total_users: number;
-  total_months_sold: number;
-  total_revenue: number;
-  created_at: string;
-}
-
 export function useVoucher() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +12,7 @@ export function useVoucher() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .rpc('get_voucher_stats') as { data: VoucherStatsResult[] | null, error: any };
+        .rpc('get_voucher_stats') as { data: VoucherStats[] | null, error: any };
       
       if (error) {
         console.error('Error loading voucher stats:', error);
@@ -57,12 +23,18 @@ export function useVoucher() {
       if (!data) return [];
 
       const voucherData: Voucher[] = data.map(item => ({
-  id: item.voucher_id,
-  code: item.code,
-  label: item.label || undefined,
-  number_of_users: item.number_of_users ?? 0,
-  total_credits: item.total_credits ?? 0,
-}));
+        id: item.voucher_id,
+        code: item.code,
+        label: item.label || undefined,
+        number_of_users: item.number_of_users ?? 0,
+        total_credits: item.total_credits ?? 0,
+        totalMonthsSold: item.total_months_sold ?? 0,
+        totalRevenue: item.total_revenue ?? 0,
+        isActive: item.is_active,
+        createdAt: item.created_at,
+        updatedAt: item.created_at,
+        credits: item.total_credits ?? 0, // for compatibility
+      }));
 
       setVouchers(voucherData);
       return voucherData;
@@ -75,7 +47,6 @@ export function useVoucher() {
     }
   };
 
-  // Load vouchers on hook initialization
   useEffect(() => {
     loadVoucherStats();
   }, []);
@@ -91,7 +62,7 @@ export function useVoucher() {
     try {
       const { data, error } = await supabase
         .rpc('validate_voucher_code', { voucher_code_input: code }) as { 
-          data: VoucherValidationResult[] | null, 
+          data: any[] | null, 
           error: any 
         };
       
@@ -107,17 +78,20 @@ export function useVoucher() {
       }
 
       const result = data[0];
-      
       if (result.is_valid) {
         toast.success(result.message);
         return {
           id: result.voucher_id!,
           code: result.voucher_code,
           label: result.voucher_label || undefined,
-          credits: 0, // Will be fetched separately if needed
+          credits: 0,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           isActive: true,
+          number_of_users: 0,
+          total_credits: 0,
+          totalMonthsSold: 0,
+          totalRevenue: 0,
         };
       } else {
         toast.error(result.message);
@@ -145,7 +119,7 @@ export function useVoucher() {
         .rpc('create_voucher', { 
           p_code: code.trim(), 
           p_label: label || null 
-        }) as { data: VoucherCreationResult[] | null, error: any };
+        }) as { data: any[] | null, error: any };
       
       if (error) {
         console.error('Error creating voucher:', error);
@@ -153,32 +127,14 @@ export function useVoucher() {
         return null;
       }
 
-      if (!data || data.length === 0) {
-        toast.error('Failed to create voucher');
+      if (!data || data.length === 0 || !data[0].success) {
+        toast.error(data && data[0] ? data[0].message : 'Failed to create voucher');
         return null;
       }
 
-      const result = data[0];
-      
-      if (result.success) {
-        toast.success(result.message);
-        
-        // Refresh voucher list
-        await loadVoucherStats();
-        
-        return {
-          id: result.voucher_id!,
-          code: code.toUpperCase(),
-          label: label,
-          credits: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isActive: true,
-        };
-      } else {
-        toast.error(result.message);
-        return null;
-      }
+      toast.success(data[0].message);
+      await loadVoucherStats();
+      return null;
     } catch (error) {
       console.error('Error creating voucher:', error);
       toast.error('Error creating voucher');
@@ -186,6 +142,71 @@ export function useVoucher() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get voucher by code
+  const getVoucherByCode = (code: string): Voucher | null => {
+    return vouchers.find(v => 
+      v.code.toLowerCase() === code.toLowerCase() && v.isActive
+    ) || null;
+  };
+
+  // Get voucher stats for a code
+  const getVoucherStats = (code: string): VoucherStats | null => {
+    const voucher = getVoucherByCode(code);
+    if (!voucher) return null;
+    return {
+      voucher_id: voucher.id,
+      code: voucher.code,
+      label: voucher.label,
+      total_credits: voucher.total_credits,
+      number_of_users: voucher.number_of_users,
+      is_active: voucher.isActive,
+      total_months_sold: voucher.totalMonthsSold,
+      total_revenue: voucher.totalRevenue,
+      created_at: voucher.createdAt,
+    };
+  };
+
+  // Toggle voucher status (admin only)
+  const toggleVoucherStatus = async (voucherId: string): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .rpc('toggle_voucher_status', { p_voucher_id: voucherId });
+      
+      if (error) {
+        console.error('Error toggling voucher status:', error);
+        toast.error('Error updating voucher status');
+        return false;
+      }
+
+      if (!data || data.length === 0 || !data[0].success) {
+        toast.error(data && data[0] ? data[0].message : 'Failed to update voucher status');
+        return false;
+      }
+
+      toast.success(data[0].message);
+      await loadVoucherStats();
+      return true;
+    } catch (error) {
+      console.error('Error toggling voucher status:', error);
+      toast.error('Error updating voucher status');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // For demo purposes only: Simulate adding credits locally
+  const addCreditsToVoucher = async (code: string, months: number): Promise<boolean> => {
+    setVouchers(prev => prev.map(voucher => 
+      voucher.code === code 
+        ? { ...voucher, credits: (voucher.credits ?? 0) + months, total_credits: (voucher.total_credits ?? 0) + months }
+        : voucher
+    ));
+    toast.success(`Demo: Added ${months} credits to voucher ${code}`);
+    return true;
   };
 
   // Apply voucher to subscription (called after payment)
@@ -203,7 +224,7 @@ export function useVoucher() {
           p_voucher_code: voucherCode,
           p_months_paid: monthsPaid,
           p_payment_amount: paymentAmount || null,
-        }) as { data: VoucherApplicationResult[] | null, error: any };
+        }) as { data: any[] | null, error: any };
       
       if (error) {
         console.error('Error applying voucher:', error);
@@ -211,108 +232,20 @@ export function useVoucher() {
         return false;
       }
 
-      if (!data || data.length === 0) {
-        toast.error('Failed to apply voucher');
+      if (!data || data.length === 0 || !data[0].success) {
+        toast.error(data && data[0] ? data[0].message : 'Failed to apply voucher');
         return false;
       }
 
       const result = data[0];
-      
-      if (result.success) {
-        toast.success(
-          `${result.message}. Added ${result.credits_added} credits and ${result.bonus_days_granted} bonus days!`
-        );
-        
-        // Refresh voucher list to show updated credits
-        await loadVoucherStats();
-        
-        return true;
-      } else {
-        toast.error(result.message);
-        return false;
-      }
+      toast.success(
+        `${result.message}. Added ${result.credits_added} credits and ${result.bonus_days_granted} bonus days!`
+      );
+      await loadVoucherStats();
+      return true;
     } catch (error) {
       console.error('Error applying voucher:', error);
       toast.error('Error applying voucher to subscription');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Simulate adding credits (for demo purposes)
-  const addCreditsToVoucher = async (code: string, months: number): Promise<boolean> => {
-    // This simulates a payment by calling the apply function with a demo user
-    // In production, this would be called from your payment webhook
-    const demoUserId = 'demo-user-' + Date.now();
-    
-    toast.info(`Simulating payment of ${months} months for voucher ${code}...`);
-    
-    // For demo, we'll just update the local voucher data
-    setVouchers(prev => prev.map(voucher => 
-      voucher.code === code 
-        ? { ...voucher, credits: voucher.credits + months }
-        : voucher
-    ));
-    
-    toast.success(`Demo: Added ${months} credits to voucher ${code}`);
-    return true;
-  };
-
-  // Get voucher by code
-  const getVoucherByCode = (code: string): Voucher | null => {
-    return vouchers.find(v => 
-      v.code.toLowerCase() === code.toLowerCase() && v.isActive
-    ) || null;
-  };
-
-  // Get voucher stats
-  const getVoucherStats = (code: string): VoucherStats | null => {
-    const voucher = getVoucherByCode(code);
-    if (!voucher) return null;
-
-    return {
-      totalCredits: voucher.credits,
-      usedCredits: 0, // Would need additional query for this
-      availableCredits: voucher.credits,
-      totalPayments: voucher.totalMonthsSold || voucher.credits,
-    };
-  };
-
-  // Toggle voucher status (admin only)
-  const toggleVoucherStatus = async (voucherId: string): Promise<boolean> => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .rpc('toggle_voucher_status', { p_voucher_id: voucherId });
-      
-      if (error) {
-        console.error('Error toggling voucher status:', error);
-        toast.error('Error updating voucher status');
-        return false;
-      }
-
-      if (!data || data.length === 0) {
-        toast.error('Failed to update voucher status');
-        return false;
-      }
-
-      const result = data[0];
-      
-      if (result.success) {
-        toast.success(result.message);
-        
-        // Refresh voucher list
-        await loadVoucherStats();
-        
-        return true;
-      } else {
-        toast.error(result.message);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error toggling voucher status:', error);
-      toast.error('Error updating voucher status');
       return false;
     } finally {
       setLoading(false);

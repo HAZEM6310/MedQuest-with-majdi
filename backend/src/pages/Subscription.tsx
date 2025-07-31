@@ -1,20 +1,56 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, CreditCard } from "lucide-react";
+import { Check, CreditCard, Coins } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const subscriptionPlans = [
-  { duration: '1_month', name: '1 Mois', price: 15, description: 'Accès complet pendant 1 mois' },
-  { duration: '2_months', name: '2 Mois', price: 25, description: 'Accès complet pendant 2 mois', popular: false },
-  { duration: '3_months', name: '3 Mois', price: 35, description: 'Accès complet pendant 3 mois', popular: true },
-  { duration: '6_months', name: '6 Mois', price: 50, description: 'Accès complet pendant 6 mois' },
-  { duration: '9_months', name: '9 Mois', price: 60, description: 'Accès complet pendant 9 mois' },
+  { 
+    duration: '1_month', 
+    name: '1 Mois', 
+    price: 15, 
+    description: 'Accès complet pendant 1 mois', 
+    credits: 1,
+    paymentLink: 'https://sandbox.knct.me/DayrdFLTZ' // Update this with correct link
+  },
+  { 
+    duration: '2_months', 
+    name: '2 Mois', 
+    price: 25, 
+    description: 'Accès complet pendant 2 mois', 
+    popular: false, 
+    credits: 2,
+    paymentLink: 'https://sandbox.knct.me/tL7s_SdQ9'
+  },
+  { 
+    duration: '3_months', 
+    name: '3 Mois', 
+    price: 35, 
+    description: 'Accès complet pendant 3 mois', 
+    popular: true, 
+    credits: 3,
+    paymentLink: 'https://sandbox.knct.me/GIHVt_N7h'
+  },
+  { 
+    duration: '6_months', 
+    name: '6 Mois', 
+    price: 50, 
+    description: 'Accès complet pendant 6 mois', 
+    credits: 6,
+    paymentLink: 'https://sandbox.knct.me/znibnFRsk'
+  },
+  { 
+    duration: '9_months', 
+    name: '9 Mois', 
+    price: 60, 
+    description: 'Accès complet pendant 9 mois', 
+    credits: 9,
+    paymentLink: 'https://sandbox.knct.me/whREBOOuS'
+  },
 ];
 
 export default function Subscription() {
@@ -29,6 +65,15 @@ export default function Subscription() {
       return;
     }
     fetchActiveSubscription();
+    
+    // Check if returning from payment
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment_status');
+    const subscriptionId = urlParams.get('subscription_id');
+    
+    if (paymentStatus && subscriptionId) {
+      handlePaymentReturn(paymentStatus, subscriptionId);
+    }
   }, [user, navigate]);
 
   const fetchActiveSubscription = async () => {
@@ -48,6 +93,58 @@ export default function Subscription() {
       setActiveSubscription(data);
     } catch (error) {
       console.error('Error fetching subscription:', error);
+    }
+  };
+
+  const handlePaymentReturn = async (status: string, subscriptionId: string) => {
+    try {
+      if (status === 'success') {
+        // Update subscription status to completed
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({ 
+            payment_status: 'completed',
+            is_active: true,
+            clicktopay_transaction_id: `ctp_${Date.now()}`
+          })
+          .eq('id', subscriptionId)
+          .eq('user_id', user?.id);
+
+        if (error) {
+          console.error('Error updating subscription:', error);
+          toast.error("Erreur lors de l'activation de l'abonnement");
+          return;
+        }
+
+        // Fetch updated profile to show credits
+        const { data: updatedProfile } = await supabase
+          .from('profiles')
+          .select('credits')
+          .eq('id', user?.id)
+          .single();
+
+        toast.success(`Paiement confirmé! Abonnement activé. Vous avez maintenant ${updatedProfile?.credits || 0} crédits!`);
+        
+        // Clean URL and refresh
+        window.history.replaceState({}, document.title, window.location.pathname);
+        fetchActiveSubscription();
+        
+      } else if (status === 'cancelled') {
+        // Update subscription status to failed
+        await supabase
+          .from('subscriptions')
+          .update({ 
+            payment_status: 'failed'
+          })
+          .eq('id', subscriptionId)
+          .eq('user_id', user?.id);
+          
+        toast.error("Paiement annulé");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (error) {
+      console.error('Payment return handling error:', error);
+      toast.error("Erreur lors du traitement du paiement");
     }
   };
 
@@ -87,18 +184,32 @@ export default function Subscription() {
           price_tnd: plan.price,
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
-          payment_status: 'pending'
+          payment_status: 'pending',
+          is_active: false
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Subscription creation error:', error);
+        throw error;
+      }
 
-      // Redirect to payment link
-      toast.success(`Redirection vers la page de paiement...`);
-      window.location.href = 'https://sandbox.knct.me/DayrdFLTZ';
-      // After payment, user should be redirected back to a confirmation page in your app
-      // You should handle payment confirmation and subscription activation there
+      // Store subscription info for return handling
+      const subscriptionInfo = {
+        id: data.id,
+        plan: plan.name,
+        price: plan.price,
+        credits: plan.credits,
+        userId: user.id
+      };
+      
+      sessionStorage.setItem('pending_subscription', JSON.stringify(subscriptionInfo));
+      
+      toast.success(`Redirection vers la page de paiement pour ${plan.name}...`);
+      
+      // Redirect to the specific payment link for this plan
+      window.location.href = plan.paymentLink;
 
     } catch (error: any) {
       console.error('Subscription error:', error);
@@ -119,11 +230,17 @@ export default function Subscription() {
                 Votre abonnement est actif jusqu'au {new Date(activeSubscription.end_date).toLocaleDateString('fr-FR')}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <div className="flex items-center space-x-2">
                 <Check className="h-5 w-5 text-green-600" />
                 <span>Accès complet à tous les QCM</span>
               </div>
+              {profile && profile.credits > 0 && (
+                <div className="flex items-center space-x-2">
+                  <Coins className="h-5 w-5 text-yellow-600" />
+                  <span>Vous avez {profile.credits} crédits disponibles</span>
+                </div>
+              )}
             </CardContent>
             <CardFooter>
               <Button onClick={() => navigate("/")} className="w-full">
@@ -182,6 +299,10 @@ export default function Subscription() {
                   <Check className="h-4 w-4 text-green-600" />
                   <span>Accès sur 1 appareil</span>
                 </li>
+                <li className="flex items-center space-x-2">
+                  <Coins className="h-4 w-4 text-yellow-600" />
+                  <span className="font-semibold">+{plan.credits} crédits inclus</span>
+                </li>
               </ul>
             </CardContent>
             <CardFooter>
@@ -201,6 +322,7 @@ export default function Subscription() {
       <div className="text-center mt-8 text-sm text-muted-foreground">
         <p>Paiement sécurisé via ClickToPay</p>
         <p>Un seul appareil autorisé par compte</p>
+        <p>Les crédits sont ajoutés automatiquement après paiement</p>
       </div>
     </div>
   );
