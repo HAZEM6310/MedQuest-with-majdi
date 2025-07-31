@@ -58,6 +58,16 @@ export default function Subscription() {
   const navigate = useNavigate();
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [userCredits, setUserCredits] = useState(0);
+
+  // Helper function to get credits from profile data
+  const getUserCredits = (profileData) => {
+    if (!profileData) return 0;
+    // Check both credits and credit_count fields, prefer credits if both exist
+    return profileData.credits !== null && profileData.credits !== undefined
+      ? profileData.credits
+      : (profileData.credit_count || 0);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -65,6 +75,7 @@ export default function Subscription() {
       return;
     }
     fetchActiveSubscription();
+    fetchUserCredits();
     
     // Check if returning from payment
     const urlParams = new URLSearchParams(window.location.search);
@@ -76,12 +87,42 @@ export default function Subscription() {
     }
   }, [user, navigate]);
 
+  // Set initial credits from profile when it loads
+  useEffect(() => {
+    if (profile) {
+      setUserCredits(getUserCredits(profile));
+    }
+  }, [profile]);
+
+  const fetchUserCredits = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('credits, credit_count')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user credits:', error);
+        return;
+      }
+
+      setUserCredits(getUserCredits(data));
+    } catch (error) {
+      console.error('Error fetching user credits:', error);
+    }
+  };
+
   const fetchActiveSubscription = async () => {
+    if (!user?.id) return;
+
     try {
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .single();
 
@@ -96,7 +137,7 @@ export default function Subscription() {
     }
   };
 
-  const handlePaymentReturn = async (status: string, subscriptionId: string) => {
+  const handlePaymentReturn = async (status, subscriptionId) => {
     try {
       if (status === 'success') {
         // Update subscription status to completed
@@ -116,14 +157,22 @@ export default function Subscription() {
           return;
         }
 
-        // Fetch updated profile to show credits
-        const { data: updatedProfile } = await supabase
+        // Fetch updated profile to get latest credits
+        const { data: updatedProfile, error: profileError } = await supabase
           .from('profiles')
-          .select('credits')
+          .select('credits, credit_count')
           .eq('id', user?.id)
           .single();
 
-        toast.success(`Paiement confirmé! Abonnement activé. Vous avez maintenant ${updatedProfile?.credits || 0} crédits!`);
+        if (profileError) {
+          console.error('Error fetching updated profile:', profileError);
+        } else {
+          // Update local credit count
+          const newCredits = getUserCredits(updatedProfile);
+          setUserCredits(newCredits);
+          
+          toast.success(`Paiement confirmé! Abonnement activé. Vous avez maintenant ${newCredits} crédits!`);
+        }
         
         // Clean URL and refresh
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -148,7 +197,7 @@ export default function Subscription() {
     }
   };
 
-  const handleSubscribe = async (plan: any) => {
+  const handleSubscribe = async (plan) => {
     if (!user) return;
 
     setIsLoading(true);
@@ -211,7 +260,7 @@ export default function Subscription() {
       // Redirect to the specific payment link for this plan
       window.location.href = plan.paymentLink;
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('Subscription error:', error);
       toast.error(error.message || "Erreur lors de l'abonnement");
     } finally {
@@ -235,10 +284,10 @@ export default function Subscription() {
                 <Check className="h-5 w-5 text-green-600" />
                 <span>Accès complet à tous les QCM</span>
               </div>
-              {profile && profile.credits > 0 && (
+              {userCredits > 0 && (
                 <div className="flex items-center space-x-2">
                   <Coins className="h-5 w-5 text-yellow-600" />
-                  <span>Vous avez {profile.credits} crédits disponibles</span>
+                  <span>Vous avez {userCredits} crédits disponibles</span>
                 </div>
               )}
             </CardContent>

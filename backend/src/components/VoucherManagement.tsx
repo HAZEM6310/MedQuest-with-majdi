@@ -90,6 +90,11 @@ export function VoucherManagement() {
     }
   }, [selectedVoucher, vouchers, getVoucherStats]);
 
+  // Add debug logging when vouchers change
+  useEffect(() => {
+    console.log(`[${new Date().toISOString()}] HAZEM6310: Vouchers in component:`, vouchers);
+  }, [vouchers]);
+
   const handleCreateVoucher = async () => {
     if (!newVoucherCode.trim()) return;
     
@@ -131,6 +136,7 @@ export function VoucherManagement() {
   };
 
   const handleRefresh = async () => {
+    console.log(`[${new Date().toISOString()}] HAZEM6310: Refreshing voucher data`);
     await loadVoucherStats();
   };
 
@@ -205,34 +211,157 @@ export function VoucherManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-  {vouchers.length === 0 ? (
-    <p className="text-muted-foreground text-center py-4">
-      No vouchers available
-    </p>
-  ) : (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border border-gray-200 rounded-lg">
-        <thead className="bg-gray-100">
-          <tr>
-            <th className="px-4 py-2 text-left">Code</th>
-            <th className="px-4 py-2 text-left">Users</th>
-            <th className="px-4 py-2 text-left">Credits</th>
-          </tr>
-        </thead>
-        <tbody>
-          {vouchers.map((voucher) => (
-            <tr key={voucher.id} className="border-b">
-              <td className="px-4 py-2 font-semibold">{voucher.code}</td>
-              <td className="px-4 py-2">{voucher.number_of_users}</td>
-<td className="px-4 py-2">{voucher.total_credits}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )}
-</CardContent>
+          {vouchers.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              {t.noVouchers}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full border border-gray-200 rounded-lg">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Code</th>
+                    <th className="px-4 py-2 text-left">Users</th>
+                    <th className="px-4 py-2 text-left">Credits</th>
+                    <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vouchers.map((voucher) => (
+                    <tr key={voucher.id} className="border-b">
+                      <td className="px-4 py-2 font-semibold">
+                        <div className="flex items-center gap-2">
+                          {voucher.code}
+                          <button 
+                            onClick={() => handleCopyCode(voucher.code)}
+                            className="text-gray-500 hover:text-blue-600"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {voucher.label && (
+                          <span className="text-xs text-gray-500 block">{voucher.label}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">{voucher.number_of_users || 0}</td>
+                      {/* Use voucher.credits instead of voucher.total_credits */}
+                      <td className="px-4 py-2">{voucher.credits || 0}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant={voucher.isActive ? "success" : "destructive"}>
+                          {voucher.isActive ? t.active : t.inactive}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setSelectedVoucher(voucher)}
+                          >
+                            <TrendingUp className="h-4 w-4 mr-1" />
+                            Stats
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={voucher.isActive ? "destructive" : "outline"}
+                            onClick={() => handleToggleStatus(voucher)}
+                          >
+                            {voucher.isActive ? 
+                              <ToggleRight className="h-4 w-4 mr-1" /> : 
+                              <ToggleLeft className="h-4 w-4 mr-1" />
+                            }
+                            {voucher.isActive ? "Disable" : "Enable"}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Debug info to help troubleshoot */}
+          {vouchers.length > 0 && (
+            <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
+              <p className="font-mono">Debug info (HAZEM6310 - {new Date().toISOString()}):</p>
+              <pre className="overflow-auto max-h-32">
+                {JSON.stringify(vouchers.map(v => ({
+                  code: v.code,
+                  credits: v.credits,
+                  total_credits: v.total_credits,
+                  users: v.number_of_users
+                })), null, 2)}
+              </pre>
+            </div>
+          )}
+        </CardContent>
       </Card>
+
+      {/* Selected Voucher Details */}
+      {selectedVoucher && (
+        <Card className="border-blue-200">
+          <CardHeader className="bg-blue-50">
+            <CardTitle className="flex items-center justify-between">
+              <div>Voucher: {selectedVoucher.code}</div>
+              <Badge variant={selectedVoucher.isActive ? "success" : "destructive"}>
+                {selectedVoucher.isActive ? t.active : t.inactive}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500">{t.totalUsers}</div>
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  <span className="text-lg font-semibold">
+                    {voucherStats?.number_of_users || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500">{t.availableCredits}</div>
+                <div className="flex items-center gap-1">
+                  <CreditCard className="h-4 w-4 text-green-600" />
+                  <span className="text-lg font-semibold">
+                    {voucherStats?.credit_count || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500">{t.usedCredits}</div>
+                <div className="flex items-center gap-1">
+                  <TrendingUp className="h-4 w-4 text-orange-600" />
+                  <span className="text-lg font-semibold">
+                    {voucherStats?.total_credits || 0}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500">{t.totalRevenue}</div>
+                <div className="flex items-center gap-1">
+                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <span className="text-lg font-semibold">
+                    {formatCurrency(voucherStats?.total_revenue)}
+                  </span>
+                </div>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <div className="text-sm text-gray-500">{t.simulatePayment}</div>
+                <Button 
+                  size="sm" 
+                  onClick={handleSimulatePayment}
+                  className="mt-1"
+                >
+                  {t.addCredits} (3)
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
