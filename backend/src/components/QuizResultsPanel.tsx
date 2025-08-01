@@ -1,9 +1,8 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/hooks/useLanguage";
-import { CheckCircle, XCircle, Clock, Target, RotateCcw, Eye, Home } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Target, RotateCcw, Eye, Home, AlertTriangle } from "lucide-react";
 
 interface QuizResultsPanelProps {
   finalGrade: number;
@@ -11,6 +10,7 @@ interface QuizResultsPanelProps {
   totalQuestions: number;
   correctAnswers: number;
   wrongAnswers: number;
+  partiallyCorrectAnswers: number;
   timePerQuestion?: string;
   onViewQuestions: () => void;
   onStartOver: () => void;
@@ -23,6 +23,7 @@ export default function QuizResultsPanel({
   score,
   totalQuestions,
   correctAnswers,
+  partiallyCorrectAnswers,
   wrongAnswers,
   timePerQuestion = "00 min 45 sec",
   onViewQuestions,
@@ -44,6 +45,8 @@ export default function QuizResultsPanel({
     if (grade >= 12) return "secondary";
     return "destructive";
   };
+
+  const incorrectQuestionsCount = wrongAnswers + partiallyCorrectAnswers;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -87,6 +90,19 @@ export default function QuizResultsPanel({
               </Badge>
             </div>
 
+            {/* Partially Correct */}
+            {partiallyCorrectAnswers > 0 && (
+              <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                  <span className="font-medium text-yellow-700">{t('quiz.results.partiallyCorrect')}</span>
+                </div>
+                <Badge variant="secondary" className="bg-yellow-600 hover:bg-yellow-700 text-white">
+                  {partiallyCorrectAnswers} {t('quiz.results.responses')}
+                </Badge>
+              </div>
+            )}
+
             {/* Wrong */}
             <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border-l-4 border-red-500">
               <div className="flex items-center gap-2">
@@ -112,9 +128,15 @@ export default function QuizResultsPanel({
                 {t('quiz.results.startOver')}
               </Button>
               
-              {wrongAnswers > 0 && (
-                <Button onClick={onRetryWrong} variant="outline" className="text-orange-600">
-                  {t('quiz.results.retryWrong')}
+              {incorrectQuestionsCount > 0 && (
+                <Button 
+                  onClick={onRetryWrong} 
+                  variant="outline" 
+                  className="text-orange-600"
+                  title={t('quiz.results.retryWrongTooltip')}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  {t('quiz.results.retryIncorrect', { count: incorrectQuestionsCount })}
                 </Button>
               )}
             </div>

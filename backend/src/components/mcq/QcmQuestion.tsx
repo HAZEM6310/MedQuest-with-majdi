@@ -3,12 +3,15 @@ import { cn } from "@/lib/utils";
 import { Question } from "@/types";
 import { CheckCircle2, XCircle } from "lucide-react";
 
+// Update the interface to include isPartiallyCorrect
 interface QcmQuestionProps {
   question: Question;
   selectedOptions: string[];
   onOptionSelect: (optionId: string) => void;
   showResult: boolean;
   isCorrect: boolean;
+  isPartiallyCorrect?: boolean; // Add this prop
+  isRetryMode?: boolean;
 }
 
 export default function QcmQuestion({
@@ -16,14 +19,17 @@ export default function QcmQuestion({
   selectedOptions,
   onOptionSelect,
   showResult,
-  isCorrect
+  isCorrect,
+  isPartiallyCorrect = false, // Default to false
+  isRetryMode = false, 
 }: QcmQuestionProps) {
   if (!question || !question.options) return null;
   
   const alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
   const getOptionStatus = (optionId: string) => {
-    if (!showResult) return 'normal';
+    // Skip showing results during retry mode
+    if (!showResult || isRetryMode) return 'normal';
     
     const option = question.options?.find(opt => opt.id === optionId);
     const isSelected = selectedOptions.includes(optionId);
@@ -41,6 +47,9 @@ export default function QcmQuestion({
         const isSelected = selectedOptions.includes(option.id);
         const optionStatus = getOptionStatus(option.id);
         
+        // Determine if the option is clickable - always allow in retry mode
+        const isClickable = isRetryMode || !showResult;
+        
         return (
           <div
             key={option.id}
@@ -48,26 +57,34 @@ export default function QcmQuestion({
               "border-2 rounded-xl overflow-hidden transition-all",
               isSelected && !showResult && "border-primary",
               !isSelected && !showResult && "border-gray-100 hover:border-gray-300",
+              // Apply styling based on option status
               optionStatus === 'correct' && "border-green-500 bg-green-50",
               optionStatus === 'wrong' && "border-red-500 bg-red-50",
               optionStatus === 'missed' && "border-yellow-500 bg-yellow-50",
-              showResult && optionStatus === 'normal' && "border-gray-200",
+              optionStatus === 'normal' && isSelected && "border-primary",
+              optionStatus === 'normal' && !isSelected && "border-gray-200",
+              // Add hover effect when clickable
+              isClickable && !isSelected && "hover:border-gray-300",
             )}
-            onClick={() => !showResult && onOptionSelect(option.id)}
+            onClick={() => {
+              console.log("Option clicked, isRetryMode:", isRetryMode, "isClickable:", isClickable);
+              if (isClickable) {
+                onOptionSelect(option.id);
+              }
+            }}
           >
             <div className={cn(
-              "p-4 flex items-start gap-3 cursor-pointer",
-              showResult && "cursor-default"
+              "p-4 flex items-start gap-3",
+              isClickable ? "cursor-pointer" : "cursor-default"
             )}>
               {/* Option Label (A, B, C, etc.) */}
               <div className={cn(
                 "flex items-center justify-center h-8 w-8 rounded-full shrink-0 font-semibold",
-                isSelected && !showResult && "bg-primary text-white",
-                !isSelected && !showResult && "bg-gray-100 text-gray-700",
+                isSelected && optionStatus === 'normal' && "bg-primary text-white",
+                !isSelected && optionStatus === 'normal' && "bg-gray-100 text-gray-700",
                 optionStatus === 'correct' && "bg-green-500 text-white",
                 optionStatus === 'wrong' && "bg-red-500 text-white",
                 optionStatus === 'missed' && "bg-yellow-500 text-white",
-                showResult && optionStatus === 'normal' && "bg-gray-200 text-gray-700",
               )}>
                 {alphabet[index]}
               </div>
@@ -85,7 +102,7 @@ export default function QcmQuestion({
               </div>
               
               {/* Result Indicator */}
-              {showResult && (
+              {optionStatus !== 'normal' && (
                 <div className="ml-2">
                   {optionStatus === 'correct' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
                   {optionStatus === 'wrong' && <XCircle className="h-5 w-5 text-red-500" />}
@@ -93,8 +110,8 @@ export default function QcmQuestion({
               )}
             </div>
             
-            {/* Explanation (shown after answering) */}
-            {showResult && option.is_correct && question.explanation && (
+            {/* Explanation (shown after answering, but not in retry mode) */}
+            {showResult && !isRetryMode && option.is_correct && question.explanation && (
               <div className="p-4 bg-gray-50 border-t">
                 <p className="text-sm text-gray-700">{question.explanation}</p>
               </div>

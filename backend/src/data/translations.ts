@@ -102,8 +102,8 @@ export const translations = {
       question: 'Question',
       of: 'of',
       score: 'Score',
-       progress: "Progress",
-       validateAnswer: "Validate Answer",
+      progress: "Progress",
+      validateAnswer: "Validate Answer",
       nextQuestion: "Next Question",
       exitQuiz: "Exit Quiz?",
       exitWarning: "Your progress will be saved. You can continue this quiz later.",
@@ -124,6 +124,8 @@ export const translations = {
       reviewQuestions: 'Review Questions',
       yourAnswer: 'Your Answer',
       correctAnswer: 'Correct Answer',
+      noQuestionsToRetry: "There are no questions to retry.",
+      retryingIncorrectQuestions: "Retrying {{count}} incorrect questions",
       settings: {
         title: 'Quiz Settings',
         showAnswers: 'Show answers immediately',
@@ -132,15 +134,19 @@ export const translations = {
       },
       results: {
         title: 'Quiz Results',
+        partiallyCorrect: "Partially Correct",
         generalAverage: 'General Average',
         timePerQuestion: 'Time per Question',
         success: 'Success',
         responses: 'responses',
+        response: 'response',
         incomplete: 'Incomplete',
         wrong: 'Wrong',
         viewQuestions: 'View Questions',
         startOver: 'Start Over',
         retryWrong: 'Retry Wrong Questions',
+        retryIncorrect: 'Retry {{count}}',
+        retryWrongTooltip: 'Retry all questions that were answered incorrectly or partially correctly',
         quit: 'Quit'
       }
     },
@@ -468,7 +474,8 @@ export const translations = {
       start: 'Commencer',
       discover: 'Découvrez nos cours médicaux complets avec des quiz interactifs',
       noCoursesFound: 'Aucun cours trouvé',
-      tryOtherKeywords: 'Essayez avec d\'autres mots-clés'
+      tryOtherKeywords: 'Essayez avec d\'autres mots-clés',
+      totalQuestions: 'questions'
     },
     quiz: {
       loading: 'Chargement du quiz...',
@@ -482,7 +489,6 @@ export const translations = {
       exitWarning: "Votre progression sera sauvegardée. Vous pourrez continuer ce quiz plus tard.",
       exitConfirm: "Quitter",
       finishQuiz: 'Terminer le quiz',
-    
       explanation: 'Explication',
       noQuestions: 'Aucune question disponible pour ce cours',
       completed: 'Quiz terminé ! Note finale',
@@ -498,6 +504,8 @@ export const translations = {
       reviewQuestions: 'Réviser les Questions',
       yourAnswer: 'Votre Réponse',
       correctAnswer: 'Réponse Correcte',
+      noQuestionsToRetry: "Il n'y a pas de questions à refaire.",
+      retryingIncorrectQuestions: "Refaire {{count}} questions incorrectes",
       settings: {
         title: 'Paramètres du Quiz',
         showAnswers: 'Afficher les réponses immédiatement',
@@ -509,12 +517,16 @@ export const translations = {
         generalAverage: 'Moyenne générale',
         timePerQuestion: 'Temps par question',
         success: 'Réussi',
+        partiallyCorrect: "Partiellement Correct",
         responses: 'réponses',
+        response: 'réponse',
         incomplete: 'Incomplète',
         wrong: 'Fausse',
         viewQuestions: 'Voir les questions',
         startOver: 'Recommencer à zéro',
         retryWrong: 'Refaire les questions ratées',
+        retryIncorrect: 'Refaire {{count}}',
+        retryWrongTooltip: 'Refaire toutes les questions auxquelles vous avez répondu incorrectement ou partiellement',
         quit: 'Quitter'
       }
     },

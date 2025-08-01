@@ -22,6 +22,7 @@ export default function Quiz() {
   const navigate = useNavigate();
   
   const [course, setCourse] = useState<Course | null>(null);
+  const [partiallyCorrectQuestions, setPartiallyCorrectQuestions] = useState<Set<number>>(new Set());
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
@@ -44,6 +45,7 @@ export default function Quiz() {
   const [hasExistingProgress, setHasExistingProgress] = useState(false);
   const [timer, setTimer] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isRetryMode, setIsRetryMode] = useState(false);
 
   // Define currentQuestion based on currentQuestionIndex
   const currentQuestion = questions[currentQuestionIndex];
@@ -73,7 +75,7 @@ export default function Quiz() {
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [quizSettings, quizCompleted, questionsAnswered, userAnswers, currentQuestionIndex, answeredQuestions, correctQuestions, wrongQuestionIndexes]);
+  }, [quizSettings, quizCompleted, questionsAnswered, userAnswers, currentQuestionIndex, answeredQuestions, correctQuestions, wrongQuestionIndexes, partiallyCorrectQuestions]);
 
   const checkExistingProgress = async () => {
     if (!user || !courseId) return;
@@ -122,6 +124,14 @@ export default function Quiz() {
           const answeredSet = new Set<number>();
           const correctSet = new Set<number>();
           const wrongSet = new Set<number>();
+          const partialSet = new Set<number>();
+          
+          // If we have partially_correct_questions in the saved data, restore it
+          if (savedProgress.partially_correct_questions && Array.isArray(savedProgress.partially_correct_questions)) {
+            savedProgress.partially_correct_questions.forEach((index: number) => {
+              partialSet.add(index);
+            });
+          }
           
           Object.keys(answers).forEach((questionId) => {
             const questionIndex = questions.findIndex(q => q.id === questionId);
@@ -132,11 +142,20 @@ export default function Quiz() {
               const question = questions[questionIndex];
               const userQuestionAnswers = (answers as {[key: string]: string[]})[questionId] || [];
               const correctOptions = question.options?.filter(opt => opt.is_correct) || [];
+              
+              // Check if answer is fully correct
               const isQuestionCorrect = userQuestionAnswers.length === correctOptions.length &&
                                      userQuestionAnswers.every(answerId => correctOptions.some(opt => opt.id === answerId));
               
+              // Check if answer is partially correct
+              const isPartiallyCorrect = userQuestionAnswers.length < correctOptions.length && 
+                                       userQuestionAnswers.every(answerId => correctOptions.some(opt => opt.id === answerId)) &&
+                                       userQuestionAnswers.length > 0;
+              
               if (isQuestionCorrect) {
                 correctSet.add(questionIndex);
+              } else if (isPartiallyCorrect) {
+                partialSet.add(questionIndex);
               } else {
                 wrongSet.add(questionIndex);
               }
@@ -146,6 +165,7 @@ export default function Quiz() {
           setAnsweredQuestions(answeredSet);
           setCorrectQuestions(correctSet);
           setWrongQuestionIndexes(wrongSet);
+          setPartiallyCorrectQuestions(partialSet);
         }
         setScore(savedProgress.score || 0);
         setQuestionsAnswered(savedProgress.questions_answered || 0);
@@ -180,26 +200,27 @@ export default function Quiz() {
 
   const saveProgress = async () => {
     if (!user || !courseId) return;
-
+  
     try {
       const progressData = {
         user_id: user.id,
         course_id: courseId,
         current_question: currentQuestionIndex,
         user_answers: userAnswers,
-        score,
+        score: Math.round(score), // Ensure score is an integer
         questions_answered: questionsAnswered,
         wrong_answers: wrongAnswers,
+        partially_correct_questions: Array.from(partiallyCorrectQuestions),
         is_completed: false,
         updated_at: new Date().toISOString()
       };
-
+  
       const { error } = await supabase
         .from('quiz_progress')
         .upsert(progressData, {
           onConflict: 'user_id,course_id'
         });
-
+  
       if (error) throw error;
     } catch (error) {
       console.error('Error saving progress:', error);
@@ -263,6 +284,7 @@ export default function Quiz() {
     setAnsweredQuestions(new Set());
     setCorrectQuestions(new Set());
     setWrongQuestionIndexes(new Set());
+    setPartiallyCorrectQuestions(new Set());
   };
 
   const handleQuestionSelect = (questionIndex: number) => {
@@ -273,7 +295,7 @@ export default function Quiz() {
       return;
     }
     
-    if (showResult) return;
+    if (showResult && !isRetryMode) return;
     
     setCurrentQuestionIndex(questionIndex);
     const selectedAnswers = userAnswers[questions[questionIndex].id] || [];
@@ -320,8 +342,9 @@ export default function Quiz() {
   };
 
   const handleOptionSelect = (optionId: string) => {
-    if (showResult) return;
-    
+    // Allow selection in retry mode, regardless of showResult state
+    if (showResult && !isRetryMode) return;
+  
     const currentAnswers = userAnswers[currentQuestion.id] || [];
     let newAnswers;
     
@@ -344,23 +367,40 @@ export default function Quiz() {
     if (selectedAnswers.length === 0) return;
     
     const correctOptions = currentQuestion.options?.filter(opt => opt.is_correct) || [];
-    const correct = selectedAnswers.length === correctOptions.length &&
-                   selectedAnswers.every(answerId => correctOptions.some(opt => opt.id === answerId));
     
-    setIsCorrect(correct);
+    // Check if answer is fully correct (all correct options selected, no incorrect ones)
+    const isFullyCorrect = selectedAnswers.length === correctOptions.length &&
+    selectedAnswers.every(answerId => correctOptions.some(opt => opt.id === answerId));
+    
+    // Check if answer is partially correct (some correct options selected, no incorrect ones)
+    const isPartiallyCorrect = selectedAnswers.length < correctOptions.length && 
+    selectedAnswers.every(answerId => correctOptions.some(opt => opt.id === answerId)) &&
+    selectedAnswers.length > 0;
+                             
+    setIsCorrect(isFullyCorrect);
     setQuestionsAnswered(prev => prev + 1);
     
     setAnsweredQuestions(prev => new Set(prev).add(currentQuestionIndex));
     
-    if (correct) {
+    if (isFullyCorrect) {
       setScore(prev => prev + 1);
       setCorrectQuestions(prev => new Set(prev).add(currentQuestionIndex));
+    } else if (isPartiallyCorrect) {
+      // Handle partially correct answers
+      setPartiallyCorrectQuestions(prev => new Set(prev).add(currentQuestionIndex));
+      // Give partial credit to the score
+      setScore(prev => Math.round(prev + (selectedAnswers.length / correctOptions.length) * 0.5));
     } else {
       setWrongAnswers(prev => [...prev, currentQuestion.id]);
       setWrongQuestionIndexes(prev => new Set(prev).add(currentQuestionIndex));
     }
 
-    if (quizSettings.showAnswersImmediately) {
+    // In retry mode, never show results immediately - move to next question
+    if (isRetryMode) {
+      setTimeout(() => {
+        handleNextQuestion();
+      }, 500);
+    } else if (quizSettings.showAnswersImmediately) {
       setShowResult(true);
     } else {
       setTimeout(() => {
@@ -387,6 +427,7 @@ export default function Quiz() {
   const finishQuiz = async () => {
     const finalGrade = calculateGrade();
     setQuizCompleted(true);
+    setIsRetryMode(false); // Turn off retry mode when finishing
     
     if (user && courseId) {
       try {
@@ -397,9 +438,10 @@ export default function Quiz() {
             course_id: courseId,
             current_question: questions.length,
             user_answers: userAnswers,
-            score,
+            score: Math.round(score), // Ensure score is an integer
             questions_answered: questionsAnswered,
             wrong_answers: wrongAnswers,
+            partially_correct_questions: Array.from(partiallyCorrectQuestions),
             is_completed: true,
             final_grade: finalGrade,
             updated_at: new Date().toISOString()
@@ -429,6 +471,7 @@ export default function Quiz() {
     setAnsweredQuestions(new Set());
     setCorrectQuestions(new Set());
     setWrongQuestionIndexes(new Set());
+    setPartiallyCorrectQuestions(new Set());
     setBookmarkedQuestions(new Set());
     setQuizCompleted(false);
     setShowResultsPanel(false);
@@ -436,14 +479,60 @@ export default function Quiz() {
     setQuizSettings(null);
     setTimer(0);
     setIsPaused(false);
+    setIsRetryMode(false); // Reset retry mode
     clearSavedProgress();
   };
 
   const handleRetryWrong = () => {
-    const wrongQuestionIds = new Set(wrongAnswers);
-    const wrongQuestionsOnly = questions.filter(q => wrongQuestionIds.has(q.id));
-    setQuestions(wrongQuestionsOnly);
-    handleStartOver();
+    // Get all question IDs that were not fully correct
+    const incorrectQuestionIds = new Set([
+      ...wrongAnswers, // Completely wrong answers
+      ...Array.from(partiallyCorrectQuestions).map(index => questions[index]?.id).filter(Boolean) // Partially correct answers
+    ]);
+    
+    // Filter the questions to only include incorrect ones
+    const incorrectQuestionsOnly = questions.filter(q => incorrectQuestionIds.has(q.id));
+    
+    if (incorrectQuestionsOnly.length === 0) {
+      toast.info(t('quiz.noQuestionsToRetry'));
+      return;
+    }
+    
+    // Shuffle the incorrect questions
+    const shuffledIncorrectQuestions = [...incorrectQuestionsOnly].sort(() => Math.random() - 0.5);
+    
+    // Reset all state
+    setCurrentQuestionIndex(0);
+    setScore(0);
+    setQuestionsAnswered(0);
+    setUserAnswers({});  // Clear all previous answers
+    setWrongAnswers([]);
+    setAnsweredQuestions(new Set());
+    setCorrectQuestions(new Set());
+    setWrongQuestionIndexes(new Set());
+    setPartiallyCorrectQuestions(new Set());
+    setBookmarkedQuestions(new Set());
+    setSelectedOptionId(null);
+    setShowResult(false);
+    setQuizCompleted(false);
+    setShowResultsPanel(false);
+    setShowReview(false);
+    setTimer(0);
+    setIsPaused(false);
+    
+    // Set the filtered and shuffled questions as the new quiz questions
+    setQuestions(shuffledIncorrectQuestions);
+    
+    // IMPORTANT: Set retry mode to true
+    setIsRetryMode(true);
+    
+    // Clear any saved progress
+    clearSavedProgress();
+    
+    // Notify the user
+    toast.success(t('quiz.retryingIncorrectQuestions', {
+      count: incorrectQuestionsOnly.length
+    }));
   };
 
   const handleExitQuiz = () => {
@@ -574,8 +663,9 @@ export default function Quiz() {
         finalGrade={calculateGrade()}
         score={score}
         totalQuestions={questions.length}
-        correctAnswers={score}
-        wrongAnswers={questions.length - score}
+        correctAnswers={correctQuestions.size}
+        partiallyCorrectAnswers={partiallyCorrectQuestions.size}
+        wrongAnswers={wrongQuestionIndexes.size}
         onViewQuestions={handleViewQuestions}
         onStartOver={handleStartOver}
         onRetryWrong={handleRetryWrong}
@@ -588,20 +678,22 @@ export default function Quiz() {
     <QcmBody
       questions={questions}
       correctQuestions={correctQuestions}
+      partiallyCorrectQuestions={partiallyCorrectQuestions}
       currentQuestionIndex={currentQuestionIndex}
       selectedOptions={selectedAnswers}
       userAnswers={userAnswers}
       answeredQuestions={answeredQuestions}
       bookmarkedQuestions={bookmarkedQuestions}
-      showResult={showResult || isCurrentQuestionAnswered}
+      showResult={isRetryMode ? false : (showResult || isCurrentQuestionAnswered)} // Override showResult in retry mode
       isCorrect={isCorrect}
       timer={timer}
       isPaused={isPaused}
+      isRetryMode={isRetryMode}
       onOptionSelect={handleOptionSelect}
       onNext={handleNextQuestion}
       onPrevious={() => {
-        // Prevent going back if the current question has been answered
-        if (currentQuestionIndex > 0 && !answeredQuestions.has(currentQuestionIndex)) {
+        // Allow going back in retry mode regardless of answered state
+        if ((currentQuestionIndex > 0 && !answeredQuestions.has(currentQuestionIndex)) || isRetryMode) {
           setCurrentQuestionIndex(prev => prev - 1);
           const prevQuestion = questions[currentQuestionIndex - 1];
           const prevAnswers = userAnswers[prevQuestion.id] || [];

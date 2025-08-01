@@ -55,7 +55,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <main className={
         hideNav
           ? ""
-          : `pt-16 ${noPad ? "" : "px-0 md:px-0"}`
+          : `pt-0 ${noPad ? "" : "px-0 md:px-0"}`
       }>
         {children}
       </main>

@@ -22,57 +22,12 @@ export default function CourseDetail() {
   const [loading, setLoading] = useState(true);
   
   const { theme } = useTheme();
-  const themeConfig = {
-    purple: {
-      primary: '250 45% 60%',
-      secondary: '250 30% 45%',
-      accent: '250 46% 96%',
-      sidebar: '250 46% 97%',
-      sidebarAccent: '250 46% 94%',
-    },
-    blue: {
-      primary: '200 45% 70%',
-      secondary: '200 30% 55%',
-      accent: '200 45% 95%',
-      sidebar: '200 46% 97%',
-      sidebarAccent: '200 46% 94%',
-    },
-    caramel: {
-      primary: '30 45% 50%',
-      secondary: '30 30% 35%',
-      accent: '30 45% 95%',
-      sidebar: '30 46% 97%',
-      sidebarAccent: '30 46% 94%',
-    },
-    pinky: {
-      primary: '340 45% 70%',
-      secondary: '340 30% 55%',
-      accent: '340 20% 94%',
-      sidebar: '340 20% 97%',
-      sidebarAccent: '340 20% 91%',
-    },
-    lollipop: {
-      primary: '174 50% 50%',
-      secondary: '174 35% 35%',
-      accent: '174 50% 96%',
-      sidebar: '174 50% 97%',
-      sidebarAccent: '174 50% 94%',
-    },
-    aesthetic: {
-      primary: '220 70% 60%',
-      secondary: '250 90% 70%',
-      accent: '230 40% 95%',
-      sidebar: '230 40% 97%',
-      sidebarAccent: '230 40% 91%',
-    },
-  };
-  const bookBg = themeConfig[theme]?.primary || '250 45% 60%';
-  const coverBg = themeConfig[theme]?.accent || '250 46% 96%';
 
   useEffect(() => {
     if (!courseId) return;
     fetchCourseData();
   }, [courseId]);
+  
   useEffect(() => {
     if (facultyParam) {
       setSelectedFacultyId(facultyParam);
@@ -141,9 +96,9 @@ export default function CourseDetail() {
   };
 
   const startQuiz = () => {
-  // Navigate to the correct quiz URL path
-  navigate(`/courses/${courseId}/quiz${selectedFacultyId !== "all" ? `?faculty=${selectedFacultyId}` : ''}`);
-};
+    // Navigate to the correct quiz URL path
+    navigate(`/courses/${courseId}/quiz${selectedFacultyId !== "all" ? `?faculty=${selectedFacultyId}` : ''}`);
+  };
 
   if (loading) {
     return (
@@ -212,80 +167,248 @@ export default function CourseDetail() {
 
       <div className="flex flex-col items-center">
         <style>{`
-          .book {
+          .container.noselect {
             position: relative;
-            border-radius: 10px;
             width: 260px;
             height: 340px;
-            background: hsl(${bookBg});
-            box-shadow: 1px 1px 12px #000;
-            transform: preserve-3d;
-            perspective: 2000px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #000;
+            transition: 200ms;
+            margin-bottom: 1.5rem;
           }
-          .cover {
-            top: 0;
+          
+          .container.noselect:active {
+            width: 250px;
+            height: 330px;
+          }
+          
+          #card {
             position: absolute;
-            background: hsl(${coverBg});
-            width: 100%;
-            height: 100%;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.5s;
-            transform-origin: 0;
-            box-shadow: 1px 1px 12px #000;
+            inset: 0;
+            z-index: 0;
             display: flex;
-            align-items: center;
+            flex-direction: column;
             justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            border-radius: 20px;
+            transition: 700ms;
+            background: linear-gradient(43deg, #0C2230 0%, #1F3A4B 46%, #3C5B6F 100%);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
           }
-          .book:hover .cover {
-            transition: all 0.5s;
-            transform: rotatey(-80deg);
+          
+          .subtitle {
+            transform: translateY(160px);
+            color: #FFFFFF;
+            text-align: center;
+            width: 100%;
+            opacity: 0;
+            transition: 300ms ease-in-out;
+            font-size: 0.95rem;
+            font-weight: 500;
           }
-          .book-title {
+          
+          .title {
+            opacity: 0;
+            transition-duration: 300ms;
+            transition-timing-function: ease-in-out;
+            transition-delay: 100ms;
             font-size: 1.5rem;
             font-weight: bold;
+            color: white;
             text-align: center;
-            margin: 0 10px;
+            margin-bottom: 0.5rem;
           }
-          .book-questions {
-            font-size: 1.1rem;
+          
+          .tracker:hover ~ #card .title {
+            opacity: 1;
+          }
+          
+          .tracker:hover ~ #card .subtitle {
+            opacity: 1;
+            transform: translateY(70px);
+          }
+          
+          #prompt {
+            bottom: 20px;
+            z-index: 20;
+            font-size: 1.25rem;
+            font-weight: bold;
+            transition: 300ms ease-in-out;
+            position: absolute;
+            color: #FFFFFF;
+            text-align: center;
+            width: 100%;
+          }
+          
+          .tracker {
+            position: absolute;
+            z-index: 200;
+            width: 100%;
+            height: 100%;
+          }
+          
+          .tracker:hover {
+            cursor: pointer;
+          }
+          
+          .tracker:hover ~ #card #prompt {
+            opacity: 0;
+          }
+          
+          .tracker:hover ~ #card {
+            transition: 300ms;
+            filter: brightness(1.1);
+          }
+          
+          .container.noselect:hover #card::before {
+            transition: 200ms;
+            content: '';
+            opacity: 80%;
+          }
+          
+          .canvas {
+            perspective: 800px;
+            inset: 0;
+            z-index: 200;
+            position: absolute;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
+            gap: 0px 0px;
+            grid-template-areas: "tr-1 tr-2 tr-3 tr-4 tr-5"
+              "tr-6 tr-7 tr-8 tr-9 tr-10"
+              "tr-11 tr-12 tr-13 tr-14 tr-15"
+              "tr-16 tr-17 tr-18 tr-19 tr-20"
+              "tr-21 tr-22 tr-23 tr-24 tr-25";
+          }
+          
+          #card::before {
+            content: '';
+            background: linear-gradient(43deg, #0C2230 0%, #1F3A4B 46%, #3C5B6F 100%);
+            filter: blur(2rem);
+            opacity: 30%;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            z-index: -1;
+            transition: 200ms;
+            border-radius: 20px;
+          }
+          
+          .tr-1 { grid-area: tr-1; }
+          .tr-2 { grid-area: tr-2; }
+          .tr-3 { grid-area: tr-3; }
+          .tr-4 { grid-area: tr-4; }
+          .tr-5 { grid-area: tr-5; }
+          .tr-6 { grid-area: tr-6; }
+          .tr-7 { grid-area: tr-7; }
+          .tr-8 { grid-area: tr-8; }
+          .tr-9 { grid-area: tr-9; }
+          .tr-10 { grid-area: tr-10; }
+          .tr-11 { grid-area: tr-11; }
+          .tr-12 { grid-area: tr-12; }
+          .tr-13 { grid-area: tr-13; }
+          .tr-14 { grid-area: tr-14; }
+          .tr-15 { grid-area: tr-15; }
+          .tr-16 { grid-area: tr-16; }
+          .tr-17 { grid-area: tr-17; }
+          .tr-18 { grid-area: tr-18; }
+          .tr-19 { grid-area: tr-19; }
+          .tr-20 { grid-area: tr-20; }
+          .tr-21 { grid-area: tr-21; }
+          .tr-22 { grid-area: tr-22; }
+          .tr-23 { grid-area: tr-23; }
+          .tr-24 { grid-area: tr-24; }
+          .tr-25 { grid-area: tr-25; }
+
+          .tr-1:hover ~ #card { transform: rotateX(20deg) rotateY(-10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-2:hover ~ #card { transform: rotateX(20deg) rotateY(-5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-3:hover ~ #card { transform: rotateX(20deg) rotateY(0deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-4:hover ~ #card { transform: rotateX(20deg) rotateY(5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-5:hover ~ #card { transform: rotateX(20deg) rotateY(10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-6:hover ~ #card { transform: rotateX(10deg) rotateY(-10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-7:hover ~ #card { transform: rotateX(10deg) rotateY(-5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-8:hover ~ #card { transform: rotateX(10deg) rotateY(0deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-9:hover ~ #card { transform: rotateX(10deg) rotateY(5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-10:hover ~ #card { transform: rotateX(10deg) rotateY(10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-11:hover ~ #card { transform: rotateX(0deg) rotateY(-10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-12:hover ~ #card { transform: rotateX(0deg) rotateY(-5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-13:hover ~ #card { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-14:hover ~ #card { transform: rotateX(0deg) rotateY(5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-15:hover ~ #card { transform: rotateX(0deg) rotateY(10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-16:hover ~ #card { transform: rotateX(-10deg) rotateY(-10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-17:hover ~ #card { transform: rotateX(-10deg) rotateY(-5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-18:hover ~ #card { transform: rotateX(-10deg) rotateY(0deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-19:hover ~ #card { transform: rotateX(-10deg) rotateY(5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-20:hover ~ #card { transform: rotateX(-10deg) rotateY(10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-21:hover ~ #card { transform: rotateX(-20deg) rotateY(-10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-22:hover ~ #card { transform: rotateX(-20deg) rotateY(-5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-23:hover ~ #card { transform: rotateX(-20deg) rotateY(0deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-24:hover ~ #card { transform: rotateX(-20deg) rotateY(5deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+          .tr-25:hover ~ #card { transform: rotateX(-20deg) rotateY(10deg) rotateZ(0deg); transition: 125ms ease-in-out; }
+
+          .noselect {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+          }
+          
+          .question-count {
+            background-color: #648598;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
             font-weight: 500;
-            text-align: center;
-            margin-top: 1.5rem;
-          }
-          .cover-content {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #333;
+            margin-top: 1rem;
           }
         `}</style>
         
-        <div className="book" onClick={startQuiz}>
-          <div>
-            <div className="book-title">
-              {getLocalizedText(course.title_en, course.title_fr, course.title)}
-            </div>
-            <div className="book-questions">
-              {filteredQuestions.length} {t('course.totalQuestions')}
-              {selectedFacultyId !== "all" && (
-                <div className="text-sm mt-1">
-                  {t('faculty.filtered')}
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="cover">
-            <div className="cover-content">
-              {t('quiz.startQuiz')}
+        <div className="container noselect" onClick={startQuiz}>
+          <div className="canvas">
+            <div className="tracker tr-1"></div>
+            <div className="tracker tr-2"></div>
+            <div className="tracker tr-3"></div>
+            <div className="tracker tr-4"></div>
+            <div className="tracker tr-5"></div>
+            <div className="tracker tr-6"></div>
+            <div className="tracker tr-7"></div>
+            <div className="tracker tr-8"></div>
+            <div className="tracker tr-9"></div>
+            <div className="tracker tr-10"></div>
+            <div className="tracker tr-11"></div>
+            <div className="tracker tr-12"></div>
+            <div className="tracker tr-13"></div>
+            <div className="tracker tr-14"></div>
+            <div className="tracker tr-15"></div>
+            <div className="tracker tr-16"></div>
+            <div className="tracker tr-17"></div>
+            <div className="tracker tr-18"></div>
+            <div className="tracker tr-19"></div>
+            <div className="tracker tr-20"></div>
+            <div className="tracker tr-21"></div>
+            <div className="tracker tr-22"></div>
+            <div className="tracker tr-23"></div>
+            <div className="tracker tr-24"></div>
+            <div className="tracker tr-25"></div>
+            <div id="card">
+              <p id="prompt">{t('quiz.startQuiz')}</p>
+              <div className="title">
+                {getLocalizedText(course.title_en, course.title_fr, course.title)}
+              </div>
+              <div className="question-count">
+                {filteredQuestions.length} {t('course.totalQuestions')}
+              </div>
+              <div className="subtitle">
+                {selectedFacultyId !== "all" && t('faculty.filtered')}
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="mt-6">
+        <div className="mt-2">
           <button
             onClick={startQuiz}
             className="px-6 py-2 rounded bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"

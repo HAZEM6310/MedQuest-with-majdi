@@ -163,7 +163,7 @@ export default function Courses() {
         {/* Courses Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
-            <Link to={`/courses/${course.id}/quiz`} key={course.id}>
+            <Link to={`/courses/${course.id}`} key={course.id}>
               <Card className={`group hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${theme === 'aesthetic' ? 'aesthetic-card' : 'bg-white/70 backdrop-blur-sm'} border-0 shadow-lg h-full`}>
                 {course.image && (
                   <div className="relative h-48 overflow-hidden rounded-t-lg">

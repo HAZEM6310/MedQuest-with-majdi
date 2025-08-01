@@ -14,11 +14,13 @@ interface QcmBodyProps {
   userAnswers: { [key: string]: string[] };
   answeredQuestions: Set<number>;
   correctQuestions: Set<number>;
+  partiallyCorrectQuestions: Set<number>; // Added this prop
   bookmarkedQuestions: Set<number>;
   showResult: boolean;
   isCorrect: boolean;
   timer: number;
   isPaused: boolean;
+  isRetryMode?: boolean;
   onOptionSelect: (optionId: string) => void;
   onNext: () => void;
   onPrevious: () => void;
@@ -37,11 +39,13 @@ export default function QcmBody({
   userAnswers,
   answeredQuestions,
   correctQuestions,
+  partiallyCorrectQuestions, // Add this to destructuring
   bookmarkedQuestions,
   showResult,
   isCorrect,
   timer,
   isPaused,
+  isRetryMode = false,
   onOptionSelect,
   onNext,
   onPrevious,
@@ -56,7 +60,7 @@ export default function QcmBody({
   const [quitDialogOpen, setQuitDialogOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const currentQuestion = questions[currentQuestionIndex];
-  const isAnswered = answeredQuestions.has(currentQuestionIndex);
+  const isAnswered = isRetryMode ? false : answeredQuestions.has(currentQuestionIndex);
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
   const isAnyOptionSelected = selectedOptions.length > 0;
 
@@ -136,42 +140,44 @@ export default function QcmBody({
             question={currentQuestion}
             selectedOptions={selectedOptions}
             onOptionSelect={onOptionSelect}
-            showResult={showResult}
+            showResult={isRetryMode ? false : showResult}
             isCorrect={isCorrect}
+            isPartiallyCorrect={partiallyCorrectQuestions.has(currentQuestionIndex)}
+            isRetryMode={isRetryMode} 
           />
         </div>
 
         {/* Footer Controls */}
         <div className="bg-white border-t p-4 flex justify-between items-center">
-          <div>
-            {currentQuestionIndex > 0 && (
-              <Button
-                variant="outline"
-                onClick={onPrevious}
-                className="px-6"
-              >
-                {t('ui.previous')}
-              </Button>
-            )}
-          </div>
-          <div>
-            {!isAnswered ? (
-              <Button
-                onClick={onSubmit}
-                disabled={!isAnyOptionSelected}
-                className={cn(
-                  "px-6",
-                  isAnyOptionSelected ? "bg-primary" : "bg-primary/50"
-                )}
-              >
-                {t('quiz.validateAnswer')}
-              </Button>
-            ) : (
-              <Button
-                onClick={isLastQuestion ? onFinish : onNext}
-                className="px-6 bg-primary"
-              >
-                {isLastQuestion ? t('quiz.finishQuiz') : t('quiz.nextQuestion')}
+        <div>
+          {currentQuestionIndex > 0 && (
+            <Button
+              variant="outline"
+              onClick={onPrevious}
+              className="px-6"
+            >
+              {t('ui.previous')}
+            </Button>
+          )}
+        </div>
+        <div>
+          {(!isAnswered || isRetryMode) ? (
+            <Button
+              onClick={onSubmit}
+              disabled={!isAnyOptionSelected}
+              className={cn(
+                "px-6",
+                isAnyOptionSelected ? "bg-primary" : "bg-primary/50"
+              )}
+            >
+              {t('quiz.validateAnswer')}
+            </Button>
+          ) : (
+            <Button
+              onClick={isLastQuestion ? onFinish : onNext}
+              className="px-6 bg-primary"
+            >
+              {isLastQuestion ? t('quiz.finishQuiz') : t('quiz.nextQuestion')}
               </Button>
             )}
           </div>
@@ -190,19 +196,34 @@ export default function QcmBody({
               const isCurrent = currentQuestionIndex === index;
               const isBookmarked = bookmarkedQuestions.has(index);
               const isCorrectAnswer = correctQuestions.has(index);
+              const isPartiallyCorrect = partiallyCorrectQuestions.has(index);
+              
+              let bgColor = "bg-gray-100";
+              let textColor = "text-gray-700";
+              
+              if (isAnsweredQuestion) {
+                if (isCorrectAnswer) {
+                  bgColor = "bg-green-100";
+                  textColor = "text-green-700";
+                } else if (isPartiallyCorrect) {
+                  bgColor = "bg-yellow-100";
+                  textColor = "text-yellow-700";
+                } else {
+                  bgColor = "bg-red-100";
+                  textColor = "text-red-700";
+                }
+              }
               
               return (
                 <button
                   key={index}
                   className={cn(
                     "flex items-center justify-center h-10 w-10 rounded-full font-medium text-sm",
+                    bgColor,
+                    textColor,
                     isCurrent && "ring-2 ring-primary",
-                    isAnsweredQuestion && isCorrectAnswer 
-                      ? "bg-green-100 text-green-700" 
-                      : isAnsweredQuestion 
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200",
-                    isBookmarked && "ring-2 ring-yellow-400"
+                    isBookmarked && "ring-2 ring-yellow-400",
+                    !isAnsweredQuestion && "hover:bg-gray-200"
                   )}
                   onClick={() => onQuestionSelect(index)}
                 >
