@@ -6,6 +6,7 @@ import { Question } from "@/types";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import QcmQuestion from "./QcmQuestion";
+import { motion } from "framer-motion"; // Import motion separately
 
 interface QcmBodyProps {
   questions: Question[];
@@ -14,7 +15,7 @@ interface QcmBodyProps {
   userAnswers: { [key: string]: string[] };
   answeredQuestions: Set<number>;
   correctQuestions: Set<number>;
-  partiallyCorrectQuestions: Set<number>; // Added this prop
+  partiallyCorrectQuestions: Set<number>;
   bookmarkedQuestions: Set<number>;
   showResult: boolean;
   isCorrect: boolean;
@@ -39,7 +40,7 @@ export default function QcmBody({
   userAnswers,
   answeredQuestions,
   correctQuestions,
-  partiallyCorrectQuestions, // Add this to destructuring
+  partiallyCorrectQuestions,
   bookmarkedQuestions,
   showResult,
   isCorrect,
@@ -78,13 +79,36 @@ export default function QcmBody({
     }
   }, [currentQuestionIndex]);
 
-  // Get university/course info for display (can be extracted from course data later)
+  // Get university/course info for display
   const getCourseSubject = () => {
     return "Medical Course";
   };
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Pause Overlay - simple version without AnimatePresence */}
+      {isPaused && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white/10 p-8 rounded-2xl text-center backdrop-blur-md max-w-sm">
+            <div className="w-32 h-32 mx-auto mb-6 bg-primary/20 rounded-full flex items-center justify-center">
+              <Pause className="h-16 w-16 text-white" />
+            </div>
+            
+            <h2 className="text-white text-2xl font-bold mb-6">
+              {t('quiz.paused') || 'Quiz Paused'}
+            </h2>
+            
+            <Button 
+              onClick={onPauseResume}
+              className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg"
+            >
+              <Play className="h-5 w-5 mr-2" />
+              {t('quiz.resume') || 'Resume Quiz'}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Left Content Panel */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
@@ -149,35 +173,35 @@ export default function QcmBody({
 
         {/* Footer Controls */}
         <div className="bg-white border-t p-4 flex justify-between items-center">
-        <div>
-          {currentQuestionIndex > 0 && (
-            <Button
-              variant="outline"
-              onClick={onPrevious}
-              className="px-6"
-            >
-              {t('ui.previous')}
-            </Button>
-          )}
-        </div>
-        <div>
-          {(!isAnswered || isRetryMode) ? (
-            <Button
-              onClick={onSubmit}
-              disabled={!isAnyOptionSelected}
-              className={cn(
-                "px-6",
-                isAnyOptionSelected ? "bg-primary" : "bg-primary/50"
-              )}
-            >
-              {t('quiz.validateAnswer')}
-            </Button>
-          ) : (
-            <Button
-              onClick={isLastQuestion ? onFinish : onNext}
-              className="px-6 bg-primary"
-            >
-              {isLastQuestion ? t('quiz.finishQuiz') : t('quiz.nextQuestion')}
+          <div>
+            {currentQuestionIndex > 0 && (
+              <Button
+                variant="outline"
+                onClick={onPrevious}
+                className="px-6"
+              >
+                {t('ui.previous')}
+              </Button>
+            )}
+          </div>
+          <div>
+            {(!isAnswered || isRetryMode) ? (
+              <Button
+                onClick={onSubmit}
+                disabled={!isAnyOptionSelected}
+                className={cn(
+                  "px-6",
+                  isAnyOptionSelected ? "bg-primary" : "bg-primary/50"
+                )}
+              >
+                {t('quiz.validateAnswer')}
+              </Button>
+            ) : (
+              <Button
+                onClick={isLastQuestion ? onFinish : onNext}
+                className="px-6 bg-primary"
+              >
+                {isLastQuestion ? t('quiz.finishQuiz') : t('quiz.nextQuestion')}
               </Button>
             )}
           </div>

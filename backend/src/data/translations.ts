@@ -99,6 +99,8 @@ export const translations = {
     },
     quiz: {
       loading: 'Loading quiz...',
+      paused: 'Quiz Paused',
+      resume: 'Resume Quiz',
       question: 'Question',
       of: 'of',
       score: 'Score',
@@ -479,6 +481,8 @@ export const translations = {
     },
     quiz: {
       loading: 'Chargement du quiz...',
+      paused: 'Quiz en Pause',
+      resume: 'Reprendre',
       question: 'Question',
       of: 'sur',
       score: 'Score',
