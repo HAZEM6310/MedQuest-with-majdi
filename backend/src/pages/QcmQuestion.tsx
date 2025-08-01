@@ -69,7 +69,7 @@ export default function QcmQuestion({
                 optionStatus === 'missed' && "bg-yellow-500 text-white",
                 showResult && optionStatus === 'normal' && "bg-gray-200 text-gray-700",
               )}>
-                {alphabet[index]}
+                {alphabet[index]}-
               </div>
               
               {/* Option Text */}

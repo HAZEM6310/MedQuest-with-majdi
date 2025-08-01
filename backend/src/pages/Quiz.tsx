@@ -490,19 +490,24 @@ export default function Quiz() {
 
   if (loading) {
     return (
-      <div className="container py-8 text-center">
-        <p>{t('quiz.loading')}</p>
+      <div className="flex items-center justify-center h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-lg">{t('quiz.loading')}</p>
+        </div>
       </div>
     );
   }
 
   if (!course || questions.length === 0) {
     return (
-      <div className="container py-8 text-center">
-        <h2 className="text-xl font-bold mb-4">{t('quiz.noQuestions')}</h2>
-        <Button onClick={() => navigate(-1)}>
-          {t('ui.back')}
-        </Button>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center max-w-md p-6 bg-white rounded-xl shadow-sm">
+          <h2 className="text-xl font-bold mb-4">{t('quiz.noQuestions')}</h2>
+          <Button onClick={() => navigate(-1)}>
+            {t('ui.back')}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -550,11 +555,13 @@ export default function Quiz() {
 
   if (!currentQuestion) {
     return (
-      <div className="container py-8 text-center">
-        <h2 className="text-xl font-bold mb-4">{t('quiz.noQuestions')}</h2>
-        <Button onClick={() => navigate(-1)}>
-          {t('ui.back')}
-        </Button>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center max-w-md p-6 bg-white rounded-xl shadow-sm">
+          <h2 className="text-xl font-bold mb-4">{t('quiz.noQuestions')}</h2>
+          <Button onClick={() => navigate(-1)}>
+            {t('ui.back')}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -580,6 +587,7 @@ export default function Quiz() {
   return (
     <QcmBody
       questions={questions}
+      correctQuestions={correctQuestions}
       currentQuestionIndex={currentQuestionIndex}
       selectedOptions={selectedAnswers}
       userAnswers={userAnswers}
@@ -592,7 +600,7 @@ export default function Quiz() {
       onOptionSelect={handleOptionSelect}
       onNext={handleNextQuestion}
       onPrevious={() => {
-        // Prevent going back if the current question has been answered (showResult is true)
+        // Prevent going back if the current question has been answered
         if (currentQuestionIndex > 0 && !answeredQuestions.has(currentQuestionIndex)) {
           setCurrentQuestionIndex(prev => prev - 1);
           const prevQuestion = questions[currentQuestionIndex - 1];

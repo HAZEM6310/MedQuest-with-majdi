@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Clock, BookmarkIcon, XCircle, Pause, Play } from "lucide-react";
+import { Clock, BookmarkIcon, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Question } from "@/types";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -9,11 +9,11 @@ import QcmQuestion from "./QcmQuestion";
 
 interface QcmBodyProps {
   questions: Question[];
+  correctQuestions: Set<number>;
   currentQuestionIndex: number;
   selectedOptions: string[];
   userAnswers: { [key: string]: string[] };
   answeredQuestions: Set<number>;
-  correctQuestions: Set<number>;
   bookmarkedQuestions: Set<number>;
   showResult: boolean;
   isCorrect: boolean;
@@ -36,7 +36,6 @@ export default function QcmBody({
   selectedOptions,
   userAnswers,
   answeredQuestions,
-  correctQuestions,
   bookmarkedQuestions,
   showResult,
   isCorrect,
@@ -74,9 +73,9 @@ export default function QcmBody({
     }
   }, [currentQuestionIndex]);
 
-  // Get university/course info for display (can be extracted from course data later)
   const getCourseSubject = () => {
-    return "Medical Course";
+    // Replace with actual data from your course
+    return "Cardio-CCV / D.T.A";
   };
 
   return (
@@ -86,24 +85,17 @@ export default function QcmBody({
         {/* Header */}
         <header className="bg-white border-b p-4 flex justify-between items-center">
           <div>
-            <h1 className="text-lg font-bold text-primary">{currentQuestion?.faculty?.name || "Quiz"}</h1>
+            <h1 className="text-lg font-bold text-primary">{currentQuestion?.text_en}</h1>
             <p className="text-sm text-muted-foreground">{getCourseSubject()}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-primary/10 px-3 py-1 rounded-full">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-primary/10 px-4 py-1 rounded-full">
               <span className="text-primary font-medium">{currentQuestionIndex + 1}/{questions.length}</span>
             </div>
-            <div className="flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-2 bg-primary/10 px-4 py-1 rounded-full">
               <Clock className="h-4 w-4 text-primary" />
               <span className="text-primary font-medium">{formatTime(timer)}</span>
             </div>
-            <button 
-              onClick={onPauseResume}
-              className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
-              aria-label={isPaused ? "Resume" : "Pause"}
-            >
-              {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-            </button>
             <button 
               onClick={onBookmark}
               className={cn(
@@ -112,16 +104,14 @@ export default function QcmBody({
                   ? "bg-primary text-white" 
                   : "bg-primary/10 text-primary hover:bg-primary/20"
               )}
-              aria-label="Bookmark"
             >
-              <BookmarkIcon className="h-4 w-4" />
+              <BookmarkIcon className="h-5 w-5" />
             </button>
             <button 
               onClick={() => setQuitDialogOpen(true)} 
               className="p-2 rounded-full bg-red-50 text-red-500 hover:bg-red-100"
-              aria-label="Quit"
             >
-              <XCircle className="h-4 w-4" />
+              <XCircle className="h-5 w-5" />
             </button>
           </div>
         </header>
@@ -179,17 +169,16 @@ export default function QcmBody({
       </div>
 
       {/* Right Sidebar - Question Navigation */}
-      <div className="w-72 bg-white border-l hidden md:flex md:flex-col">
+      <div className="w-64 bg-white border-l hidden md:flex md:flex-col">
         <div className="p-4 border-b">
           <h2 className="font-semibold text-lg text-center">{t('quiz.progress')}</h2>
         </div>
         <div className="p-4 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             {questions.map((_, index) => {
               const isAnsweredQuestion = answeredQuestions.has(index);
               const isCurrent = currentQuestionIndex === index;
               const isBookmarked = bookmarkedQuestions.has(index);
-              const isCorrectAnswer = correctQuestions.has(index);
               
               return (
                 <button
@@ -197,11 +186,8 @@ export default function QcmBody({
                   className={cn(
                     "flex items-center justify-center h-10 w-10 rounded-full font-medium text-sm",
                     isCurrent && "ring-2 ring-primary",
-                    isAnsweredQuestion && isCorrectAnswer 
-                      ? "bg-green-100 text-green-700" 
-                      : isAnsweredQuestion 
-                        ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+                    isAnsweredQuestion && "bg-green-100 text-green-700",
+                    !isAnsweredQuestion && !isCurrent && "bg-gray-100 text-gray-700 hover:bg-gray-200",
                     isBookmarked && "ring-2 ring-yellow-400"
                   )}
                   onClick={() => onQuestionSelect(index)}
@@ -219,9 +205,7 @@ export default function QcmBody({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('quiz.exitQuiz')}</DialogTitle>
-            <DialogDescription>
-              {t('quiz.exitWarning')}
-            </DialogDescription>
+            <DialogDescription>{t('quiz.exitWarning')}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex justify-between">
             <Button variant="outline" onClick={() => setQuitDialogOpen(false)}>
