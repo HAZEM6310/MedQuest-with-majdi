@@ -5,6 +5,7 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[]
+
 export interface Voucher {
   id: string;
   code: string;
@@ -33,6 +34,81 @@ export interface VoucherStats {
   user_count?: number; // Add this new field
   // other fields...
 }
+
+// Add Faculty interface
+export interface Faculty {
+  id: string;
+  name: string;
+  name_en?: string;
+  name_fr?: string;
+  description?: string;
+  description_en?: string;
+  description_fr?: string;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Update Question interface to include faculty_id
+export interface Question {
+  id: string;
+  course_id: string;
+  faculty_id?: string;
+  text: string;
+  text_en?: string;
+  text_fr?: string;
+  explanation?: string;
+  explanation_en?: string;
+  explanation_fr?: string;
+  created_at: string;
+  options?: Option[];
+  faculty?: Faculty;
+}
+
+export interface Option {
+  id: string;
+  question_id: string;
+  text: string;
+  text_en?: string;
+  text_fr?: string;
+  is_correct?: boolean;
+  created_at: string;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  title_en?: string;
+  title_fr?: string;
+  description?: string;
+  description_en?: string;
+  description_fr?: string;
+  subject_id: string;
+  image?: string;
+  is_free?: boolean;
+  created_at: string;
+  question_count?: number;
+}
+
+export interface QuizSettings {
+  showAnswersImmediately: boolean;
+}
+
+export interface QuizProgress {
+  id: string;
+  user_id: string;
+  course_id: string;
+  current_question?: number;
+  user_answers?: {[key: string]: string[]};
+  score?: number;
+  questions_answered?: number;
+  is_completed?: boolean;
+  final_grade?: number;
+  wrong_answers?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -292,6 +368,7 @@ export type Database = {
           text: string
           text_en: string | null
           text_fr: string | null
+          faculty_id: string | null
         }
         Insert: {
           course_id: string
@@ -303,6 +380,7 @@ export type Database = {
           text: string
           text_en?: string | null
           text_fr?: string | null
+          faculty_id?: string | null
         }
         Update: {
           course_id?: string
@@ -314,6 +392,7 @@ export type Database = {
           text?: string
           text_en?: string | null
           text_fr?: string | null
+          faculty_id?: string | null
         }
         Relationships: [
           {
@@ -323,6 +402,13 @@ export type Database = {
             referencedRelation: "courses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "questions_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculties"
+            referencedColumns: ["id"]
+          }
         ]
       }
       quiz_progress: {
@@ -550,6 +636,45 @@ export type Database = {
           name_en?: string | null
           name_fr?: string | null
           order_index?: number
+        }
+        Relationships: []
+      }
+      faculties: {
+        Row: {
+          created_at: string
+          description: string | null
+          description_en: string | null
+          description_fr: string | null
+          id: string
+          name: string
+          name_en: string | null
+          name_fr: string | null
+          order_index: number
+          is_active: boolean
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          description_en?: string | null
+          description_fr?: string | null
+          id?: string
+          name: string
+          name_en?: string | null
+          name_fr?: string | null
+          order_index: number
+          is_active?: boolean
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          description_en?: string | null
+          description_fr?: string | null
+          id?: string
+          name?: string
+          name_en?: string | null
+          name_fr?: string | null
+          order_index?: number
+          is_active?: boolean
         }
         Relationships: []
       }

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,8 @@ import {
   BarChart3,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Building2 // Added Building2 icon for Faculties
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -27,6 +27,7 @@ export default function Sidebar() {
   const navigation = [
     { name: t('nav.home'), href: '/', icon: Home },
     { name: t('nav.courses'), href: '/courses', icon: BookOpen },
+    { name: t('nav.faculties'), href: '/faculties', icon: Building2 }, // Added Faculties navigation
     { name: t('nav.progress'), href: '/progress', icon: BarChart3 },
     { name: t('nav.achievements'), href: '/achievements', icon: Trophy },
   ];
@@ -172,7 +173,7 @@ export default function Sidebar() {
         {/* Footer */}
         <div className="p-6 border-t border-border/20">
           <div className="text-center text-sm text-muted-foreground">
-            <p>© 2024 MedQuest</p>
+            <p>© 2025 MedQuest</p>
             <p>Learn • Practice • Excel</p>
           </div>
         </div>

@@ -24,6 +24,7 @@ import LandingPage from "./pages/LandingPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import EnterEmail from "./pages/EnterEmail";
 import ResetPassword from "./pages/ResetPassword";
+import FacultyPage from '@/pages/Faculty';
 
 const queryClient = new QueryClient();
 
@@ -101,6 +102,7 @@ function MainRouter() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/courses" element={<Courses />} />
+        <Route path="/faculties" element={<FacultyPage />} />
         <Route path="/progress" element={<Progress />} />
         <Route path="/achievements" element={<Achievements />} />
         <Route 

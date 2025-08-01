@@ -1,0 +1,2 @@
+PS C:\Users\SBS\Desktop\MedQuest Cursor> $env:PGPASSWORD = "Flamy-6310@"
+PS C:\Users\SBS\Desktop\MedQuest Cursor> pg_dump -h aws-0-eu-central-1.pooler.supabase.com -U postgres.avvytaitpddyagqvawxm -d postgres -p 6543 --schema=public > db_dump.sql

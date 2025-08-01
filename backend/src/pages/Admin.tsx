@@ -8,46 +8,92 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { PlusCircle, Trash2, BookOpen, GraduationCap, FileText, Edit, Upload, CreditCard } from "lucide-react";
+import { PlusCircle, Trash2, BookOpen, GraduationCap, FileText, Edit, Upload, CreditCard, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BulkQuestionUpload from "@/components/BulkQuestionUpload";
 import { VoucherManagement } from "@/components/VoucherManagement";
- import { useEffect } from "react";
-interface MultilingualYear {
-  name_en: string;
-  name_fr: string;
-  description_en: string;
-  description_fr: string;
+import FacultyManagement from "@/components/FacultyManagement";
+import { useEffect } from "react";
+
+// Define interfaces for strong typing
+interface Year {
+  id: string;
+  name: string;
+  name_en?: string;
+  name_fr?: string;
+  description?: string;
+  description_en?: string;
+  description_fr?: string;
   order_index: number;
 }
 
-interface MultilingualSubject {
+interface Subject {
+  id: string;
   year_id: string;
-  name_en: string;
-  name_fr: string;
-  description_en: string;
-  description_fr: string;
+  name: string;
+  name_en?: string;
+  name_fr?: string;
+  description?: string;
+  description_en?: string;
+  description_fr?: string;
   order_index: number;
 }
 
-interface MultilingualCourse {
+interface Course {
+  id: string;
   subject_id: string;
-  title_en: string;
-  title_fr: string;
-  description_en: string;
-  description_fr: string;
-  category: string;
+  title: string;
+  title_en?: string;
+  title_fr?: string;
+  description?: string;
+  description_en?: string;
+  description_fr?: string;
+  category?: string;
 }
 
-interface NewQuestion {
+interface Question {
+  id: string;
   course_id: string;
+  faculty_id?: string;
+  text: string;
+  text_en?: string;
+  text_fr?: string;
+  explanation?: string;
+  explanation_en?: string;
+  explanation_fr?: string;
+  options: Option[];
+}
+
+interface Option {
+  id: string;
+  question_id: string;
+  text: string;
+  text_en?: string;
+  text_fr?: string;
+  is_correct: boolean;
+}
+
+interface Faculty {
+  id: string;
+  name: string;
+  name_en?: string;
+  name_fr?: string;
+  university_name?: string;
+  university_name_en?: string;
+  university_name_fr?: string;
+  is_active: boolean;
+  order_index: number;
+}
+
+interface EditQuestion {
+  id: string;
   text_en: string;
   text_fr: string;
-  options: { text_en: string; text_fr: string; is_correct: boolean }[];
   explanation_en: string;
   explanation_fr: string;
+  options: Option[];
 }
 
 export default function Admin() {
@@ -56,10 +102,10 @@ export default function Admin() {
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedQuestionId, setSelectedQuestionId] = useState("");
-  const [editQuestion, setEditQuestion] = useState(null);
+  const [editQuestion, setEditQuestion] = useState<EditQuestion | null>(null);
 
   // Fetch questions for selected course
-  const { data: questions = [] } = useQuery({
+  const { data: questions = [] } = useQuery<Question[]>({
     queryKey: ["questions", selectedCourseId],
     queryFn: async () => {
       if (!selectedCourseId) return [];
@@ -77,16 +123,15 @@ export default function Admin() {
   const selectedQuestion = questions.find(q => q.id === selectedQuestionId);
 
   // When selectedQuestion changes, update editQuestion state
- 
   useEffect(() => {
     if (selectedQuestion) {
       setEditQuestion({
-        text_en: selectedQuestion.text_en || "",
+        id: selectedQuestion.id,
+        text_en: selectedQuestion.text_en || selectedQuestion.text || "",
         text_fr: selectedQuestion.text_fr || "",
-        explanation_en: selectedQuestion.explanation_en || "",
+        explanation_en: selectedQuestion.explanation_en || selectedQuestion.explanation || "",
         explanation_fr: selectedQuestion.explanation_fr || "",
         options: selectedQuestion.options || [],
-        id: selectedQuestion.id,
       });
     } else {
       setEditQuestion(null);
@@ -94,13 +139,14 @@ export default function Admin() {
   }, [selectedQuestionId, questions]);
 
   // Option handlers for editQuestion
-  const handleEditOptionChange = (idx, field, value) => {
+  const handleEditOptionChange = (idx: number, field: string, value: string) => {
     if (!editQuestion) return;
     const updated = [...editQuestion.options];
     updated[idx] = { ...updated[idx], [field]: value };
     setEditQuestion({ ...editQuestion, options: updated });
   };
-  const handleEditOptionCorrectChange = (idx, isCorrect) => {
+  
+  const handleEditOptionCorrectChange = (idx: number, isCorrect: boolean) => {
     if (!editQuestion) return;
     const updated = [...editQuestion.options];
     updated[idx] = { ...updated[idx], is_correct: isCorrect };
@@ -109,23 +155,27 @@ export default function Admin() {
 
   // Save and Delete handlers
   const saveEditMutation = useMutation({
-    mutationFn: async (q) => {
+    mutationFn: async (q: EditQuestion) => {
       // Update question
       const { error: qErr } = await supabase
         .from("questions")
         .update({
+          text: q.text_en, // Legacy field
           text_en: q.text_en,
           text_fr: q.text_fr,
+          explanation: q.explanation_en, // Legacy field
           explanation_en: q.explanation_en,
           explanation_fr: q.explanation_fr,
         })
         .eq("id", q.id);
       if (qErr) throw qErr;
+      
       // Update options
       for (const opt of q.options) {
         await supabase
           .from("options")
           .update({
+            text: opt.text_en, // Legacy field
             text_en: opt.text_en,
             text_fr: opt.text_fr,
             is_correct: opt.is_correct,
@@ -139,8 +189,9 @@ export default function Admin() {
       toast.success("Question updated successfully");
     },
   });
+  
   const deleteQuestionMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: string) => {
       await supabase.from("options").delete().eq("question_id", id);
       await supabase.from("questions").delete().eq("id", id);
       return id;
@@ -151,27 +202,48 @@ export default function Admin() {
       toast.success("Question deleted successfully");
     },
   });
+  
   const handleSaveEditQuestion = () => {
     if (editQuestion) saveEditMutation.mutate(editQuestion);
   };
+  
   const handleDeleteQuestion = () => {
     if (editQuestion) deleteQuestionMutation.mutate(editQuestion.id);
   };
+  
   const { t } = useLanguage();
   const queryClient = useQueryClient();
 
   // State for new items
-  const [newYear, setNewYear] = useState<MultilingualYear>({ 
-    name_en: "", name_fr: "", description_en: "", description_fr: "", order_index: 1 
+  const [newYear, setNewYear] = useState({ 
+    name_en: "", 
+    name_fr: "", 
+    description_en: "", 
+    description_fr: "", 
+    order_index: 1 
   });
-  const [newSubject, setNewSubject] = useState<MultilingualSubject>({ 
-    year_id: "", name_en: "", name_fr: "", description_en: "", description_fr: "", order_index: 1 
+  
+  const [newSubject, setNewSubject] = useState({ 
+    year_id: "", 
+    name_en: "", 
+    name_fr: "", 
+    description_en: "", 
+    description_fr: "", 
+    order_index: 1 
   });
-  const [newCourse, setNewCourse] = useState<MultilingualCourse>({ 
-    subject_id: "", title_en: "", title_fr: "", description_en: "", description_fr: "", category: "" 
+  
+  const [newCourse, setNewCourse] = useState({ 
+    subject_id: "", 
+    title_en: "", 
+    title_fr: "", 
+    description_en: "", 
+    description_fr: "", 
+    category: "" 
   });
-  const [newQuestion, setNewQuestion] = useState<NewQuestion>({
+  
+  const [newQuestion, setNewQuestion] = useState({
     course_id: "",
+    faculty_id: "",
     text_en: "",
     text_fr: "",
     options: [
@@ -183,10 +255,11 @@ export default function Admin() {
     explanation_en: "",
     explanation_fr: "",
   });
-  const [editingYear, setEditingYear] = useState<null | (MultilingualYear & { id: string })>(null);
+  
+  const [editingYear, setEditingYear] = useState<null | (Year & { id: string })>(null);
 
   // Fetch data
-  const { data: yearsRaw = [] } = useQuery({
+  const { data: years = [] } = useQuery<Year[]>({
     queryKey: ['years'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -194,14 +267,11 @@ export default function Admin() {
         .select('*')
         .order('order_index');
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
-  const years: (MultilingualYear & { id: string })[] = Array.isArray(yearsRaw)
-    ? yearsRaw.filter((y): y is MultilingualYear & { id: string } => !!y && typeof y === 'object' && 'id' in y)
-    : [];
 
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ['subjects'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -209,11 +279,11 @@ export default function Admin() {
         .select('*')
         .order('order_index');
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
-  const { data: courses = [] } = useQuery({
+  const { data: courses = [] } = useQuery<Course[]>({
     queryKey: ['courses'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -221,13 +291,25 @@ export default function Admin() {
         .select('*')
         .order('created_at');
       if (error) throw error;
-      return data;
+      return data || [];
+    }
+  });
+
+  const { data: faculties = [] } = useQuery<Faculty[]>({
+    queryKey: ['faculties'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('faculties')
+        .select('*')
+        .order('order_index');
+      if (error) throw error;
+      return data || [];
     }
   });
 
   // Mutations
   const addYearMutation = useMutation({
-    mutationFn: async (year: MultilingualYear) => {
+    mutationFn: async (year: typeof newYear) => {
       const { data, error } = await supabase
         .from('years')
         .insert([{
@@ -252,7 +334,7 @@ export default function Admin() {
   });
 
   const addSubjectMutation = useMutation({
-    mutationFn: async (subject: MultilingualSubject) => {
+    mutationFn: async (subject: typeof newSubject) => {
       const { data, error } = await supabase
         .from('subjects')
         .insert([{
@@ -278,7 +360,7 @@ export default function Admin() {
   });
 
   const addCourseMutation = useMutation({
-    mutationFn: async (course: MultilingualCourse) => {
+    mutationFn: async (course: typeof newCourse) => {
       const { data, error } = await supabase
         .from('courses')
         .insert([{
@@ -304,12 +386,13 @@ export default function Admin() {
   });
 
   const addQuestionMutation = useMutation({
-    mutationFn: async (questionData: NewQuestion) => {
+    mutationFn: async (questionData: typeof newQuestion) => {
       // First, insert the question
       const { data: question, error: questionError } = await supabase
         .from('questions')
         .insert([{
           course_id: questionData.course_id,
+          faculty_id: questionData.faculty_id === "null" ? null : questionData.faculty_id || null,
           text: questionData.text_en, // Legacy field
           text_en: questionData.text_en,
           text_fr: questionData.text_fr,
@@ -342,6 +425,7 @@ export default function Admin() {
     onSuccess: () => {
       setNewQuestion({
         course_id: "",
+        faculty_id: "",
         text_en: "",
         text_fr: "",
         options: [
@@ -358,7 +442,7 @@ export default function Admin() {
   });
 
   const updateYearMutation = useMutation({
-    mutationFn: async (year) => {
+    mutationFn: async (year: Year) => {
       const { error } = await supabase
         .from('years')
         .update({
@@ -379,8 +463,9 @@ export default function Admin() {
       toast.success('Year updated successfully');
     },
   });
+  
   const deleteYearMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from('years').delete().eq('id', id);
       if (error) throw error;
       return id;
@@ -430,7 +515,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="content" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="content">{t('admin.manageContent')}</TabsTrigger>
           <TabsTrigger value="courses">Course Sections</TabsTrigger>
           <TabsTrigger value="questions">{t('admin.addQuestion')}</TabsTrigger>
@@ -440,6 +525,7 @@ export default function Admin() {
           </TabsTrigger>
           <TabsTrigger value="edit">{t('admin.editContent')}</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="faculties">Faculties</TabsTrigger>
           <TabsTrigger value="vouchers">
             <CreditCard className="h-4 w-4 mr-2" />
             Vouchers
@@ -448,7 +534,6 @@ export default function Admin() {
 
         {/* Content Management Tab */}
         <TabsContent value="content" className="space-y-6">
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Add Year */}
             <Card>
@@ -505,7 +590,7 @@ export default function Admin() {
                     id="year-order"
                     type="number"
                     value={newYear.order_index}
-                    onChange={(e) => setNewYear({...newYear, order_index: parseInt(e.target.value)})}
+                    onChange={(e) => setNewYear({...newYear, order_index: parseInt(e.target.value) || 1})}
                   />
                 </div>
                 <Button 
@@ -684,20 +769,38 @@ export default function Admin() {
               <CardTitle>Add Multilingual Question (Multiple Correct Answers Supported)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="question-course">Course</Label>
-                <Select value={newQuestion.course_id} onValueChange={(value) => setNewQuestion({...newQuestion, course_id: value})}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.id}>
-                        {course.title_en || course.title} / {course.title_fr || course.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="question-course">Course</Label>
+                  <Select value={newQuestion.course_id} onValueChange={(value) => setNewQuestion({...newQuestion, course_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.title_en || course.title} / {course.title_fr || course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="question-faculty">Faculty (Optional)</Label>
+                  <Select value={newQuestion.faculty_id} onValueChange={(value) => setNewQuestion({...newQuestion, faculty_id: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select faculty (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="null">No Faculty</SelectItem>
+                      {faculties.map((faculty) => (
+                        <SelectItem key={faculty.id} value={faculty.id}>
+                          {faculty.name_en || faculty.name} {faculty.university_name && `- ${faculty.university_name_en || faculty.university_name}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -812,7 +915,12 @@ export default function Admin() {
 
         {/* Bulk Upload Tab */}
         <TabsContent value="bulk-upload">
-          <BulkQuestionUpload courses={courses} />
+          <BulkQuestionUpload courses={courses} faculties={faculties} />
+        </TabsContent>
+
+        {/* Faculties Tab */}
+        <TabsContent value="faculties">
+          <FacultyManagement />
         </TabsContent>
 
         {/* Course Sections Tab */}
@@ -833,7 +941,7 @@ export default function Admin() {
           </Card>
         </TabsContent>
 
-        {/* Edit Content Tab - Redone for Question Editing */}
+        {/* Edit Content Tab */}
         <TabsContent value="edit">
           <Card>
             <CardHeader>
@@ -904,7 +1012,7 @@ export default function Admin() {
                   </div>
                 )}
                 {/* Step 5: Edit Question Form */}
-                {selectedQuestion && (
+                {selectedQuestion && editQuestion && (
                   <div className="mt-6 border rounded p-4">
                     <h3 className="font-bold mb-2">Edit Question</h3>
                     <div className="grid grid-cols-2 gap-4 mb-2">
@@ -933,8 +1041,8 @@ export default function Admin() {
                         {editQuestion.options.map((option, idx) => (
                           <div key={idx} className="flex gap-2 items-center">
                             <Checkbox checked={option.is_correct} onCheckedChange={checked => handleEditOptionCorrectChange(idx, !!checked)} />
-                            <Input value={option.text_en} onChange={e => handleEditOptionChange(idx, 'text_en', e.target.value)} placeholder={`Option ${String.fromCharCode(65 + idx)} (EN)`} />
-                            <Input value={option.text_fr} onChange={e => handleEditOptionChange(idx, 'text_fr', e.target.value)} placeholder={`Option ${String.fromCharCode(65 + idx)} (FR)`} />
+                            <Input value={option.text_en || ""} onChange={e => handleEditOptionChange(idx, 'text_en', e.target.value)} placeholder={`Option ${String.fromCharCode(65 + idx)} (EN)`} />
+                            <Input value={option.text_fr || ""} onChange={e => handleEditOptionChange(idx, 'text_fr', e.target.value)} placeholder={`Option ${String.fromCharCode(65 + idx)} (FR)`} />
                           </div>
                         ))}
                       </div>

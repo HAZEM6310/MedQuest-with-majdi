@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +14,9 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Quiz() {
   const { courseId } = useParams<{ courseId: string }>();
+  const [searchParams] = useSearchParams();
+  const facultyId = searchParams.get('faculty');
+  
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -215,13 +217,21 @@ export default function Quiz() {
       if (courseError) throw courseError;
       setCourse(courseData);
 
-      const { data: questionsData, error: questionsError } = await supabase
+      // Build query with optional faculty filter
+      let questionsQuery = supabase
         .from('questions')
         .select(`
           *,
           options (*)
         `)
         .eq('course_id', courseId);
+        
+      // Apply faculty filter if selected
+      if (facultyId && facultyId !== 'all') {
+        questionsQuery = questionsQuery.eq('faculty_id', facultyId);
+      }
+
+      const { data: questionsData, error: questionsError } = await questionsQuery;
 
       if (questionsError) throw questionsError;
       

@@ -7,9 +7,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { Upload, Download, FileText, AlertCircle, CheckCircle } from "lucide-react";
+import { Upload, Download, AlertCircle, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface Course {
+  id: string;
+  title: string;
+  title_en?: string;
+  title_fr?: string;
+}
+
+interface Faculty {
+  id: string;
+  name: string;
+  name_en?: string;
+  name_fr?: string;
+  university_name?: string;
+  university_name_en?: string;
+}
 
 interface BulkQuestion {
   course_id: string;
@@ -35,12 +51,14 @@ interface BulkQuestion {
 }
 
 interface BulkQuestionUploadProps {
-  courses: any[];
+  courses: Course[];
+  faculties?: Faculty[];
 }
 
-export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps) {
+export default function BulkQuestionUpload({ courses, faculties = [] }: BulkQuestionUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<string>("");
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedFaculty, setSelectedFaculty] = useState("");
   const [parsedQuestions, setParsedQuestions] = useState<BulkQuestion[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -63,6 +81,11 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
+      if (!text) {
+        toast.error("Failed to read file");
+        return;
+      }
+      
       const lines = text.split('\n').filter(line => line.trim());
       
       if (lines.length < 2) {
@@ -97,7 +120,7 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
           continue;
         }
 
-        const question: any = { course_id: selectedCourse };
+        const question = { course_id: selectedCourse } as Record<string, any>;
         headers.forEach((header, index) => {
           if (header.includes('_correct')) {
             question[header] = values[index].toLowerCase() === 'true';
@@ -153,6 +176,7 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
             .from('questions')
             .insert([{
               course_id: questionData.course_id,
+              faculty_id: selectedFaculty === "null" ? null : selectedFaculty || null,
               text: questionData.text_en,
               text_en: questionData.text_en,
               text_fr: questionData.text_fr,
@@ -287,21 +311,39 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
           </Button>
         </div>
 
-        {/* Course Selection */}
-        <div>
-          <Label htmlFor="bulk-course">Select Course</Label>
-          <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select course for questions" />
-            </SelectTrigger>
-            <SelectContent>
-              {courses.map((course) => (
-                <SelectItem key={course.id} value={course.id}>
-                  {course.title_en || course.title} / {course.title_fr || course.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Course and Faculty Selection */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="bulk-course">Select Course</Label>
+            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select course for questions" />
+              </SelectTrigger>
+              <SelectContent>
+                {courses && courses.map((course) => (
+                  <SelectItem key={course.id} value={course.id}>
+                    {course.title_en || course.title} / {course.title_fr || course.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="bulk-faculty">Faculty (Optional)</Label>
+            <Select value={selectedFaculty} onValueChange={setSelectedFaculty}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select faculty (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="null">No Faculty</SelectItem>
+                {faculties && faculties.map((faculty) => (
+                  <SelectItem key={faculty.id} value={faculty.id}>
+                    {faculty.name_en || faculty.name} {faculty.university_name && `- ${faculty.university_name_en || faculty.university_name}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* File Upload */}
@@ -347,6 +389,9 @@ export default function BulkQuestionUpload({ courses }: BulkQuestionUploadProps)
               <div className="font-medium mb-2">Ready to Upload:</div>
               <p className="text-sm">
                 {parsedQuestions.length} questions parsed successfully and ready for upload.
+                {selectedFaculty && selectedFaculty !== "null" && (
+                  <span> All questions will be associated with the selected faculty.</span>
+                )}
               </p>
             </AlertDescription>
           </Alert>

@@ -13,6 +13,7 @@ export const translations = {
       subscription: 'Subscription',
       logout: 'Logout',
       login: 'Login',
+      faculties: "Faculties",
       signup: 'Sign Up'
     },
     ui: {
@@ -56,6 +57,16 @@ export const translations = {
       explore: 'Explore',
       all: 'All'
     },
+    faculty: {
+      browse: "Browse by Faculty",
+      filteredSubjects: "Subjects in this Faculty",
+      noSubjectsFound: "No subjects found for this faculty",
+      select: "Select Faculty",
+      viewAll: "View All Subjects",
+      exploreFaculty: "Explore Faculty",
+      all: "All Faculties",
+      filtered: "Filtered by faculty"
+    },
     home: {
       title: 'MedQuest',
       welcome: 'Master medical knowledge with interactive quizzes and comprehensive courses',
@@ -83,7 +94,8 @@ export const translations = {
       start: 'Start',
       discover: 'Discover our complete medical courses with interactive quizzes',
       noCoursesFound: 'No courses found',
-      tryOtherKeywords: 'Try with other keywords'
+      tryOtherKeywords: 'Try with other keywords',
+      totalQuestions: 'questions'
     },
     quiz: {
       loading: 'Loading quiz...',
@@ -372,7 +384,8 @@ export const translations = {
       subscription: 'Abonnement',
       logout: 'Déconnexion',
       login: 'Connexion',
-      signup: 'Inscription'
+      signup: 'Inscription',
+      faculties: "Facultés"
     },
     ui: {
       back: 'Retour',
@@ -414,6 +427,16 @@ export const translations = {
       dashboard: 'Tableau de bord',
       explore: 'Explorer',
       all: 'Tous'
+    },
+    faculty: {
+      browse: "Parcourir par Faculté",
+      select: "Sélectionner une Faculté",
+      filteredSubjects: "Matières dans cette Faculté",
+      noSubjectsFound: "Aucune matière trouvée pour cette faculté",
+      viewAll: "Voir toutes les matières",
+      exploreFaculty: "Explorer la Faculté",
+      all: "Toutes les facultés",
+      filtered: "Filtré par faculté"
     },
     home: {
       title: 'MedQuest',
