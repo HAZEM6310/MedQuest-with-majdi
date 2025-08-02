@@ -1,20 +1,23 @@
-// Navbar.tsx
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   GraduationCap,
   User,
   LogOut,
   Settings,
-  Globe,
   Palette,
   CreditCard,
   ShieldCheck,
   Home,
+  BookOpen,
+  Building2,
+  Flame,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/hooks/useTheme";
+import { useStreak } from "@/hooks/useStreak";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -23,9 +26,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const THEMES = ["purple", "blue", "caramel", "pinky", "lollipop"] as const;
+
+interface NavbarProps {
+  isSidebarCollapsed?: boolean;
+}
 
 function GoogleIcon() {
   return (
@@ -55,15 +68,102 @@ function GoogleIcon() {
   );
 }
 
-export default function Navbar() {
+// Streak Display component
+function StreakDisplay() {
+  const { streak, isLoading } = useStreak();
+  const { t } = useLanguage();
+  
+  if (isLoading) {
+    return null;
+  }
+  
+  // Different styles based on streak length with transparent backgrounds
+  const getStreakStyle = (count: number) => {
+    if (count >= 30) return "border-orange-300 dark:border-orange-700";
+    if (count >= 14) return "border-orange-200 dark:border-orange-800";
+    return "border-gray-200 dark:border-gray-700";
+  };
+
+  const getFlameColor = (count: number) => {
+    if (count >= 30) return "text-orange-600 dark:text-orange-400";
+    if (count >= 14) return "text-orange-500";
+    return "text-gray-400 dark:text-gray-500";
+  };
+
+  const getTextColor = (count: number) => {
+    if (count >= 30) return "text-orange-700 dark:text-orange-300";
+    if (count >= 14) return "text-orange-600 dark:text-orange-400";
+    return "text-gray-600 dark:text-gray-400";
+  };
+  
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div 
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md border", 
+              getStreakStyle(streak)
+            )}
+          >
+            <Flame className={cn("h-4 w-4", getFlameColor(streak))} />
+            <span className={cn("font-semibold", getTextColor(streak))}>
+              {streak}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p className="font-medium">{t('streak.tooltip', { count: streak })}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('streak.description')}</p>
+          {streak >= 7 && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <p className="text-xs font-medium text-orange-500">
+                {t('streak.milestone', { count: streak })}
+              </p>
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+export default function Navbar({ isSidebarCollapsed }: NavbarProps) {
   const { user, profile, signOut, signInWithGoogle } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
-
+  const location = useLocation();
+  
   // Loading states for async operations
   const [loadingSignOut, setLoadingSignOut] = useState(false);
   const [loadingGoogleSignIn, setLoadingGoogleSignIn] = useState(false);
+
+  // Navigation tabs
+  const navTabs = [
+    { name: t('nav.home'), path: '/', icon: Home },
+    { name: t('nav.courses'), path: '/courses', icon: BookOpen },
+    { name: t('nav.faculties'), path: '/faculties', icon: Building2 },
+  ];
+
+  const currentPath = location.pathname;
+  
+  const getActiveTab = () => {
+    // Return exact match
+    const exactMatch = navTabs.find(tab => tab.path === currentPath);
+    if (exactMatch) return exactMatch.path;
+    
+    // Return partial match (for nested routes)
+    const partialMatch = navTabs.find(tab => 
+      tab.path !== '/' && currentPath.startsWith(tab.path)
+    );
+    if (partialMatch) return partialMatch.path;
+    
+    // Default to home
+    return '/';
+  };
+
+  const activeTab = getActiveTab();
 
   const handleSignOut = async () => {
     setLoadingSignOut(true);
@@ -93,48 +193,111 @@ export default function Navbar() {
 
   return (
     <nav
-      className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      className="fixed top-0 left-0 right-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      style={{ 
+        paddingLeft: isSidebarCollapsed ? "5rem" : "15rem",
+        transition: "padding-left 300ms ease-in-out"
+      }}
       role="navigation"
       aria-label={t("nav.ariaLabel") || "Main navigation"}
     >
-      <div className="container flex h-16 items-center justify-between px-2 md:px-4">
-        {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2 pl-2 md:pl-4" aria-label={t("nav.home")}>
-          <GraduationCap className="h-6 w-6 text-secondary" aria-hidden="true" />
-          <span className="text-xl font-bold">MedQuest</span>
-        </Link>
+      <div className="flex h-16 items-center justify-between px-4 md:px-6">
+        {/* Logo (hidden on desktop with sidebar) */}
+        <div className="flex items-center md:hidden">
+          <Link to="/" className="flex items-center space-x-2" aria-label={t("nav.home")}>
+            <GraduationCap className="h-6 w-6 text-primary" aria-hidden="true" />
+            <span className="text-xl font-bold">MedQuest</span>
+          </Link>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="hidden md:flex items-center space-x-1 relative">
+          <div className="flex overflow-hidden">
+            {navTabs.map((tab) => {
+              const isActive = tab.path === activeTab;
+              const TabIcon = tab.icon;
+              
+              return (
+                <Link
+                  key={tab.path}
+                  to={tab.path}
+                  className={cn(
+                    "relative px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 group",
+                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <div className="flex items-center space-x-2">
+                    <TabIcon className="h-4 w-4" />
+                    <span>{tab.name}</span>
+                  </div>
+                  
+                  <div 
+                    className={cn(
+                      "absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full transition-transform duration-300",
+                      isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-75"
+                    )}
+                  />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Controls */}
-        <div className="flex items-center space-x-4">
-          {/* Language Switcher */}
-<DropdownMenu>
-  <DropdownMenuTrigger
-    asChild
-    aria-haspopup="listbox"
-    aria-expanded="false"
-    aria-label={t("nav.language")}
-  >
-    <Button variant="ghost" size="sm">
-      {language === "fr" ? "🇫🇷" : "🇬🇧"}
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent role="listbox">
-    <DropdownMenuItem
-      role="option"
-      onClick={() => setLanguage("fr")}
-      tabIndex={0}
-    >
-      🇫🇷 Français
-    </DropdownMenuItem>
-    <DropdownMenuItem
-      role="option"
-      onClick={() => setLanguage("en")}
-      tabIndex={0}
-    >
-      🇬🇧 English
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
+        <div className="flex items-center space-x-3">
+          {/* Streak Display */}
+          {user && <StreakDisplay />}
+
+          {/* Subscription Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/subscription")}
+            className="hidden sm:flex"
+            aria-label={t("nav.subscription")}
+          >
+            <CreditCard className="h-4 w-4 mr-2" aria-hidden="true" /> 
+            {t("nav.subscription")}
+          </Button>
+
+          {/* Language Switcher - Simplified Design without dark background */}
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-2">
+              <button
+                onClick={() => setLanguage('fr')}
+                className={`p-1 rounded-md transition ${
+                  language === 'fr' 
+                    ? 'bg-white shadow-sm ring-2 ring-blue-200' 
+                    : 'hover:bg-gray-200'
+                }`}
+                title="Français"
+              >
+                <svg width="24" height="18" viewBox="0 0 24 18" className="rounded-sm overflow-hidden">
+                  <rect width="24" height="18" fill="#ffffff" rx="2"/>
+                  <rect width="8" height="18" fill="#0055A4" rx="2"/>
+                  <rect x="16" width="8" height="18" fill="#EF4135"/>
+                </svg>
+              </button>
+              <button
+                onClick={() => setLanguage('en')}
+                className={`p-1 rounded-md transition ${
+                  language === 'en' 
+                    ? 'bg-white shadow-sm ring-2 ring-blue-200' 
+                    : 'hover:bg-gray-200'
+                }`}
+                title="English"
+              >
+                <svg width="24" height="18" viewBox="0 0 24 18" className="rounded-sm overflow-hidden">
+                  <rect width="24" height="18" fill="#012169" rx="2"/>
+                  <g>
+                    <path d="M0 0l24 18M24 0L0 18" stroke="#ffffff" strokeWidth="2"/>
+                    <path d="M0 0l24 18M24 0L0 18" stroke="#C8102E" strokeWidth="1.2"/>
+                    <path d="M12 0v18M0 9h24" stroke="#ffffff" strokeWidth="4"/>
+                    <path d="M12 0v18M0 9h24" stroke="#C8102E" strokeWidth="2.4"/>
+                  </g>
+                </svg>
+              </button>
+          </div>
 
           {/* Theme Switcher */}
           <DropdownMenu>
@@ -144,7 +307,7 @@ export default function Navbar() {
               aria-expanded="false"
               aria-label={t("nav.theme")}
             >
-              <Button variant="ghost" size="sm" aria-label={t("nav.selectTheme")}>
+              <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={t("nav.selectTheme")}>
                 <Palette className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
@@ -155,33 +318,13 @@ export default function Navbar() {
                   role="option"
                   onClick={() => setTheme(th)}
                   tabIndex={0}
+                  className={theme === th ? "bg-accent" : ""}
                 >
                   {t(`themes.${th}`)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Navigation buttons */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/")}
-            aria-label={t("nav.home")}
-          >
-            <Home className="h-4 w-4 mr-2" aria-hidden="true" /> {t("nav.home")}
-          </Button>
-
-          {/* Removed Quizzes button */}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/subscription")}
-            aria-label={t("nav.subscription")}
-          >
-            <CreditCard className="h-4 w-4 mr-2" aria-hidden="true" /> {t("nav.subscription")}
-          </Button>
 
           {/* Authenticated User Menu */}
           {user ? (
@@ -193,8 +336,10 @@ export default function Navbar() {
                 aria-label={t("nav.userMenu")}
               >
                 <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                  <User className="h-4 w-4" aria-hidden="true" />
-                  <span>{profile?.full_name || user.email}</span>
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary" aria-hidden="true" />
+                  </div>
+                  <span className="hidden md:inline">{profile?.full_name || user.email?.split('@')[0]}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" role="menu">
@@ -217,7 +362,7 @@ export default function Navbar() {
                   role="menuitem"
                   tabIndex={0}
                 >
-                  <Settings className="mr-2 h-4 w-4" aria-hidden="true" /> {t("nav.achievements")}
+                  <ShieldCheck className="mr-2 h-4 w-4" aria-hidden="true" /> {t("nav.achievements")}
                 </DropdownMenuItem>
                 {profile?.is_admin && (
                   <DropdownMenuItem
@@ -235,7 +380,8 @@ export default function Navbar() {
                   tabIndex={0}
                   disabled={loadingSignOut}
                 >
-                  <LogOut className="mr-2 h-4 w-4" aria-hidden="true" /> {loadingSignOut ? t("nav.loggingOut") : t("nav.logout")}
+                  <LogOut className="mr-2 h-4 w-4" aria-hidden="true" /> 
+                  {loadingSignOut ? t("nav.loggingOut") : t("nav.logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -252,16 +398,10 @@ export default function Navbar() {
                 {loadingGoogleSignIn ? t("nav.signingIn") : "Google"}
               </Button>
 
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/auth" aria-label={t("nav.login")}>
-                  {t("nav.login")}
-                </Link>
-              </Button>
-
               <Button
                 asChild
                 size="sm"
-                className="bg-secondary hover:bg-secondary/90"
+                className="bg-primary hover:bg-primary/90"
               >
                 <Link to="/auth" aria-label={t("nav.signup")}>
                   {t("nav.signup")}

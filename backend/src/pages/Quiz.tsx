@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Course, Question, QuizSettings as QuizSettingsType, QuizProgress } from "@/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import QuizSettings from "@/components/QuizSettings";
 import QuizResultsPanel from "@/components/QuizResultsPanel";
 import QuizReview from "@/components/QuizReview";
 import QcmBody from "@/components/mcq/QcmBody";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useAuth } from "@/hooks/useAuth";
+import QuizSidebar from "@/components/quiz/QuizSidebar";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useLoading } from "@/contexts/loading-context";
 
 export default function Quiz() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -20,6 +24,7 @@ export default function Quiz() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { startLoading, stopLoading } = useLoading();
   
   const [course, setCourse] = useState<Course | null>(null);
   const [partiallyCorrectQuestions, setPartiallyCorrectQuestions] = useState<Set<number>>(new Set());
@@ -103,6 +108,8 @@ export default function Quiz() {
   const loadSavedProgress = async () => {
     if (!user || !courseId) return;
     
+    startLoading(t('quiz.loading'));
+    
     try {
       const { data: savedProgress, error } = await supabase
         .from('quiz_progress')
@@ -178,6 +185,8 @@ export default function Quiz() {
       }
     } catch (error) {
       console.log('No saved progress found:', error);
+    } finally {
+      stopLoading();
     }
   };
 
@@ -228,6 +237,7 @@ export default function Quiz() {
   };
 
   const fetchCourseAndQuestions = async () => {
+    startLoading(t('quiz.loading'));
     try {
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
@@ -264,6 +274,7 @@ export default function Quiz() {
       navigate(-1);
     } finally {
       setLoading(false);
+      stopLoading();
     }
   };
 
@@ -581,7 +592,7 @@ export default function Quiz() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <LoadingSpinner size="lg" />
           <p className="text-lg">{t('quiz.loading')}</p>
         </div>
       </div>
@@ -674,38 +685,110 @@ export default function Quiz() {
     );
   }
 
+  // The main quiz view
   return (
-    <QcmBody
-      questions={questions}
-      correctQuestions={correctQuestions}
-      partiallyCorrectQuestions={partiallyCorrectQuestions}
-      currentQuestionIndex={currentQuestionIndex}
-      selectedOptions={selectedAnswers}
-      userAnswers={userAnswers}
-      answeredQuestions={answeredQuestions}
-      bookmarkedQuestions={bookmarkedQuestions}
-      showResult={isRetryMode ? false : (showResult || isCurrentQuestionAnswered)} // Override showResult in retry mode
-      isCorrect={isCorrect}
-      timer={timer}
-      isPaused={isPaused}
-      isRetryMode={isRetryMode}
-      onOptionSelect={handleOptionSelect}
-      onNext={handleNextQuestion}
-      onPrevious={() => {
-        // Allow going back in retry mode regardless of answered state
-        if ((currentQuestionIndex > 0 && !answeredQuestions.has(currentQuestionIndex)) || isRetryMode) {
-          setCurrentQuestionIndex(prev => prev - 1);
-          const prevQuestion = questions[currentQuestionIndex - 1];
-          const prevAnswers = userAnswers[prevQuestion.id] || [];
-          setSelectedOptionId(prevAnswers[0] || null);
-        }
-      }}
-      onSubmit={handleCheckAnswer}
-      onFinish={finishQuiz}
-      onBookmark={handleBookmark}
-      onQuit={handleQuit}
-      onPauseResume={handlePauseResume}
-      onQuestionSelect={handleQuestionSelect}
-    />
+    <div className="container mx-auto py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+        {/* Main question area (takes 3/4 of the width on large screens) */}
+        <div className="lg:col-span-3 flex flex-col">
+          <QcmBody
+            questions={questions}
+            correctQuestions={correctQuestions}
+            partiallyCorrectQuestions={partiallyCorrectQuestions}
+            currentQuestionIndex={currentQuestionIndex}
+            selectedOptions={selectedAnswers}
+            userAnswers={userAnswers}
+            answeredQuestions={answeredQuestions}
+            bookmarkedQuestions={bookmarkedQuestions}
+            showResult={isRetryMode ? false : (showResult || isCurrentQuestionAnswered)}
+            isCorrect={isCorrect}
+            timer={timer}
+            isPaused={isPaused}
+            isRetryMode={isRetryMode}
+            showSidebar={false} // This is the critical change - explicitly hide the built-in sidebar
+            onOptionSelect={handleOptionSelect}
+            onNext={handleNextQuestion}
+            onPrevious={() => {
+              // Allow going back in retry mode regardless of answered state
+              if ((currentQuestionIndex > 0 && !answeredQuestions.has(currentQuestionIndex)) || isRetryMode) {
+                setCurrentQuestionIndex(prev => prev - 1);
+                const prevQuestion = questions[currentQuestionIndex - 1];
+                const prevAnswers = userAnswers[prevQuestion.id] || [];
+                setSelectedOptionId(prevAnswers[0] || null);
+              }
+            }}
+            onSubmit={handleCheckAnswer}
+            onFinish={finishQuiz}
+            onBookmark={handleBookmark}
+            onQuit={handleQuit}
+            onPauseResume={handlePauseResume}
+            onQuestionSelect={handleQuestionSelect}
+          />
+        </div>
+
+        {/* Sidebar with Progress and Notes (takes 1/4 of the width on large screens) */}
+        <div className="lg:col-span-1 h-full">
+          <QuizSidebar questionId={currentQuestion.id}>
+            {/* Progress UI as children */}
+            <div className="p-4 flex-1 overflow-y-auto">
+              <div className="grid grid-cols-4 gap-3">
+                {questions.map((_, index) => {
+                  const isAnsweredQuestion = answeredQuestions.has(index);
+                  const isCurrent = currentQuestionIndex === index;
+                  const isBookmarked = bookmarkedQuestions.has(index);
+                  const isCorrectAnswer = correctQuestions.has(index);
+                  const isPartiallyCorrect = partiallyCorrectQuestions.has(index);
+                  
+                  let bgColor = "bg-gray-100";
+                  let textColor = "text-gray-700";
+                  
+                  if (isAnsweredQuestion) {
+                    if (isCorrectAnswer) {
+                      bgColor = "bg-green-100";
+                      textColor = "text-green-700";
+                    } else if (isPartiallyCorrect) {
+                      bgColor = "bg-yellow-100";
+                      textColor = "text-yellow-700";
+                    } else {
+                      bgColor = "bg-red-100";
+                      textColor = "text-red-700";
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      key={index}
+                      className={cn(
+                        "flex items-center justify-center h-10 w-10 rounded-full font-medium text-sm",
+                        bgColor,
+                        textColor,
+                        isCurrent && "ring-2 ring-primary",
+                        isBookmarked && "ring-2 ring-yellow-400",
+                        !isAnsweredQuestion && "hover:bg-gray-200"
+                      )}
+                      onClick={() => handleQuestionSelect(index)}
+                    >
+                      {index + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </QuizSidebar>
+        </div>
+      </div>
+      
+      {/* Quiz paused dialog */}
+      <Dialog open={isPaused} onOpenChange={setIsPaused}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('quiz.paused')}</DialogTitle>
+          </DialogHeader>
+          <Button onClick={handlePauseResume}>
+            {t('quiz.resume')}
+          </Button>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

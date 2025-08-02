@@ -1,4 +1,4 @@
-// Fixed translations object with duplicate keys removed and structure normalized
+// Complete translations object with notes feature in both languages
 
 export const translations = {
   en: {
@@ -97,6 +97,12 @@ export const translations = {
       tryOtherKeywords: 'Try with other keywords',
       totalQuestions: 'questions'
     },
+    streak: {
+      tooltip: "{{count}} day streak",
+      description: "Login daily to maintain your streak!",
+      broken: "You broke your streak. Login daily to build it up again!",
+      milestone: "Congratulations! You've reached a {{count}} day streak!",
+    },
     quiz: {
       loading: 'Loading quiz...',
       paused: 'Quiz Paused',
@@ -105,6 +111,7 @@ export const translations = {
       of: 'of',
       score: 'Score',
       progress: "Progress",
+      notes: "Notes",
       validateAnswer: "Validate Answer",
       nextQuestion: "Next Question",
       exitQuiz: "Exit Quiz?",
@@ -188,6 +195,16 @@ export const translations = {
       settingsUpdated: 'Settings updated successfully',
       loginRequired: 'Login Required',
       loginRequiredDesc: 'Please log in to view your profile'
+    },
+    notes: {
+      yourNotes: "Your Notes",
+      placeholder: "Write your notes here...",
+      lastUpdated: "Last updated",
+      noNoteYet: "No notes for this question yet",
+      clickEditToStart: "Click Edit to start taking notes",
+      createNote: "Create Note",
+      deleteConfirmTitle: "Delete Note?",
+      deleteConfirmDescription: "This action cannot be undone. This note will be permanently deleted."
     },
     progress: {
       title: 'Progress',
@@ -479,6 +496,12 @@ export const translations = {
       tryOtherKeywords: 'Essayez avec d\'autres mots-clés',
       totalQuestions: 'questions'
     },
+    streak: {
+      tooltip: "Série de {{count}} jours",
+      description: "Connectez-vous chaque jour pour maintenir votre série!",
+      broken: "Vous avez rompu votre série. Connectez-vous quotidiennement pour la reconstruire!",
+      milestone: "Félicitations! Vous avez atteint une série de {{count}} jours!",
+    },
     quiz: {
       loading: 'Chargement du quiz...',
       paused: 'Quiz en Pause',
@@ -487,6 +510,7 @@ export const translations = {
       of: 'sur',
       score: 'Score',
       progress: "Progrès",
+      notes: "Notes",
       validateAnswer: "Valider la réponse",
       nextQuestion: "Question suivante",
       exitQuiz: "Quitter le quiz ?",
@@ -570,6 +594,16 @@ export const translations = {
       settingsUpdated: 'Paramètres mis à jour avec succès',
       loginRequired: 'Connexion requise',
       loginRequiredDesc: 'Veuillez vous connecter pour voir votre profil'
+    },
+    notes: {
+      yourNotes: "Vos Notes",
+      placeholder: "Écrivez vos notes ici...",
+      lastUpdated: "Dernière mise à jour",
+      noNoteYet: "Pas encore de notes pour cette question",
+      clickEditToStart: "Cliquez sur Modifier pour commencer à prendre des notes",
+      createNote: "Créer une Note",
+      deleteConfirmTitle: "Supprimer la note ?",
+      deleteConfirmDescription: "Cette action ne peut pas être annulée. Cette note sera définitivement supprimée."
     },
     progress: {
       title: 'Progrès',

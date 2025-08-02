@@ -8,13 +8,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { PlusCircle, Trash2, BookOpen, GraduationCap, FileText, Edit, Upload, CreditCard, Download } from "lucide-react";
+import { 
+  PlusCircle, 
+  Trash2, 
+  BookOpen, 
+  GraduationCap, 
+  FileText, 
+  Edit, 
+  Upload, 
+  CreditCard, 
+  Download, 
+  User,
+  AlertTriangle 
+} from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import BulkQuestionUpload from "@/components/BulkQuestionUpload";
 import { VoucherManagement } from "@/components/VoucherManagement";
 import FacultyManagement from "@/components/FacultyManagement";
+import UserSettings from "@/components/admin/UserSettings";
 import { useEffect } from "react";
 
 // Define interfaces for strong typing
@@ -515,7 +528,7 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="content" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="content">{t('admin.manageContent')}</TabsTrigger>
           <TabsTrigger value="courses">Course Sections</TabsTrigger>
           <TabsTrigger value="questions">{t('admin.addQuestion')}</TabsTrigger>
@@ -529,6 +542,10 @@ export default function Admin() {
           <TabsTrigger value="vouchers">
             <CreditCard className="h-4 w-4 mr-2" />
             Vouchers
+          </TabsTrigger>
+          <TabsTrigger value="user-settings">
+            <User className="h-4 w-4 mr-2" />
+            User Settings
           </TabsTrigger>
         </TabsList>
 
@@ -1075,6 +1092,11 @@ export default function Admin() {
         {/* Voucher Management Tab */}
         <TabsContent value="vouchers">
           <VoucherManagement />
+        </TabsContent>
+
+        {/* User Settings Tab */}
+        <TabsContent value="user-settings">
+          <UserSettings />
         </TabsContent>
       </Tabs>
     </div>

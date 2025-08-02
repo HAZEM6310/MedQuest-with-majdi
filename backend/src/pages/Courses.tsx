@@ -77,7 +77,7 @@ export default function Courses() {
   }
 
   return (
-    <div className={`min-h-screen ${theme === 'aesthetic' ? 'aesthetic-bg' : 'bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100'}`}>
+    <div className={`min-h-screen ${theme === 'aesthetic' ? 'aesthetic-bg' : 'bg-background'}`}>
       <div className="container mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8">

@@ -6,7 +6,7 @@ import { Question } from "@/types";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import QcmQuestion from "./QcmQuestion";
-import { motion } from "framer-motion"; // Import motion separately
+import { motion } from "framer-motion";
 
 interface QcmBodyProps {
   questions: Question[];
@@ -22,6 +22,7 @@ interface QcmBodyProps {
   timer: number;
   isPaused: boolean;
   isRetryMode?: boolean;
+  showSidebar?: boolean; // Add this prop to control sidebar visibility
   onOptionSelect: (optionId: string) => void;
   onNext: () => void;
   onPrevious: () => void;
@@ -47,6 +48,7 @@ export default function QcmBody({
   timer,
   isPaused,
   isRetryMode = false,
+  showSidebar = true, // Default to showing the sidebar
   onOptionSelect,
   onNext,
   onPrevious,
@@ -208,56 +210,58 @@ export default function QcmBody({
         </div>
       </div>
 
-      {/* Right Sidebar - Question Navigation */}
-      <div className="w-72 bg-white border-l hidden md:flex md:flex-col">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold text-lg text-center">{t('quiz.progress')}</h2>
-        </div>
-        <div className="p-4 flex-1 overflow-y-auto">
-          <div className="grid grid-cols-4 gap-3">
-            {questions.map((_, index) => {
-              const isAnsweredQuestion = answeredQuestions.has(index);
-              const isCurrent = currentQuestionIndex === index;
-              const isBookmarked = bookmarkedQuestions.has(index);
-              const isCorrectAnswer = correctQuestions.has(index);
-              const isPartiallyCorrect = partiallyCorrectQuestions.has(index);
-              
-              let bgColor = "bg-gray-100";
-              let textColor = "text-gray-700";
-              
-              if (isAnsweredQuestion) {
-                if (isCorrectAnswer) {
-                  bgColor = "bg-green-100";
-                  textColor = "text-green-700";
-                } else if (isPartiallyCorrect) {
-                  bgColor = "bg-yellow-100";
-                  textColor = "text-yellow-700";
-                } else {
-                  bgColor = "bg-red-100";
-                  textColor = "text-red-700";
+      {/* Right Sidebar - Question Navigation - Only show if showSidebar is true */}
+      {showSidebar && (
+        <div className="w-72 bg-white border-l hidden md:flex md:flex-col">
+          <div className="p-4 border-b">
+            <h2 className="font-semibold text-lg text-center">{t('quiz.progress')}</h2>
+          </div>
+          <div className="p-4 flex-1 overflow-y-auto">
+            <div className="grid grid-cols-4 gap-3">
+              {questions.map((_, index) => {
+                const isAnsweredQuestion = answeredQuestions.has(index);
+                const isCurrent = currentQuestionIndex === index;
+                const isBookmarked = bookmarkedQuestions.has(index);
+                const isCorrectAnswer = correctQuestions.has(index);
+                const isPartiallyCorrect = partiallyCorrectQuestions.has(index);
+                
+                let bgColor = "bg-gray-100";
+                let textColor = "text-gray-700";
+                
+                if (isAnsweredQuestion) {
+                  if (isCorrectAnswer) {
+                    bgColor = "bg-green-100";
+                    textColor = "text-green-700";
+                  } else if (isPartiallyCorrect) {
+                    bgColor = "bg-yellow-100";
+                    textColor = "text-yellow-700";
+                  } else {
+                    bgColor = "bg-red-100";
+                    textColor = "text-red-700";
+                  }
                 }
-              }
-              
-              return (
-                <button
-                  key={index}
-                  className={cn(
-                    "flex items-center justify-center h-10 w-10 rounded-full font-medium text-sm",
-                    bgColor,
-                    textColor,
-                    isCurrent && "ring-2 ring-primary",
-                    isBookmarked && "ring-2 ring-yellow-400",
-                    !isAnsweredQuestion && "hover:bg-gray-200"
-                  )}
-                  onClick={() => onQuestionSelect(index)}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
+                
+                return (
+                  <button
+                    key={index}
+                    className={cn(
+                      "flex items-center justify-center h-10 w-10 rounded-full font-medium text-sm",
+                      bgColor,
+                      textColor,
+                      isCurrent && "ring-2 ring-primary",
+                      isBookmarked && "ring-2 ring-yellow-400",
+                      !isAnsweredQuestion && "hover:bg-gray-200"
+                    )}
+                    onClick={() => onQuestionSelect(index)}
+                  >
+                    {index + 1}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Quit Dialog */}
       <Dialog open={quitDialogOpen} onOpenChange={setQuitDialogOpen}>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +53,7 @@ export default function Index() {
   }
 
   return (
-    <div className={`min-h-screen ${theme === 'aesthetic' ? 'aesthetic-bg' : 'bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100'}`}>
+    <div className={`min-h-screen ${theme === 'aesthetic' ? 'aesthetic-bg' : 'bg-background'}`}>
       <div className="container mx-auto px-6 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
