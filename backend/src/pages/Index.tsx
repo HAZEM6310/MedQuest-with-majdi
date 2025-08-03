@@ -44,6 +44,12 @@ export default function Index() {
     return frText || defaultText || '';
   };
 
+  // Function to get a color based on index
+  const getCardColor = (index: number) => {
+    const colors = ["#213341", "#4A5C6A", "#9AA8AB"];
+    return colors[index % colors.length];
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -68,26 +74,96 @@ export default function Index() {
         {/* Incomplete Quizzes */}
         {user && <IncompleteQuizzes />}
 
-        {/* Years Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {years.map((year) => (
-            <Link to={`/year/${year.id}/subjects`} key={year.id}>
-              <Card className={`group hover:shadow-xl transition-all duration-300 transform hover:scale-105 ${theme === 'aesthetic' ? 'aesthetic-card' : 'bg-white/70 backdrop-blur-sm'} border-0 shadow-lg`}>
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl font-bold text-gray-600 group-hover:text-primary transition-colors">
-                    {getLocalizedText(year.name_en, year.name_fr, year.name)}
-                  </CardTitle>
-                  <CardDescription className="text-gray-500">
-                    {getLocalizedText(year.description_en, year.description_fr, year.description)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <Button className="group-hover:bg-primary group-hover:text-white transition-colors">
-                    {t('ui.explore')}
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
+        {/* Years Cards with new styling */}
+        <div className="cards-container">
+          <style jsx>{`
+            .cards-container {
+              display: flex;
+              flex-wrap: wrap;
+              justify-content: center;
+              gap: 20px;
+              perspective: 1000px;
+            }
+            
+            .year-card {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              flex-direction: column;
+              text-align: center;
+              height: 180px;
+              width: 280px;
+              border-radius: 12px;
+              color: white;
+              cursor: pointer;
+              transition: all 400ms ease;
+              padding: 1.5rem;
+              position: relative;
+              overflow: hidden;
+              box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            }
+            
+            .year-card .tip {
+              font-size: 1.3em;
+              font-weight: 700;
+              margin-bottom: 0.75rem;
+            }
+            
+            .year-card .second-text {
+              font-size: 0.85em;
+              opacity: 0.8;
+              line-height: 1.4;
+              max-width: 250px;
+            }
+            
+            .year-card .explore-btn {
+              position: absolute;
+              bottom: -40px;
+              opacity: 0;
+              background-color: rgba(255,255,255,0.2);
+              color: white;
+              border: none;
+              padding: 0.5rem 1rem;
+              border-radius: 30px;
+              font-weight: 600;
+              transition: all 300ms ease;
+              display: flex;
+              align-items: center;
+            }
+            
+            .year-card:hover {
+              transform: scale(1.1);
+              z-index: 10;
+            }
+            
+            .year-card:hover .explore-btn {
+              bottom: 20px;
+              opacity: 1;
+            }
+            
+            .cards-container:hover > .year-card:not(:hover) {
+              filter: blur(5px) brightness(0.7);
+              transform: scale(0.9);
+            }
+          `}</style>
+          
+          {years.map((year, index) => (
+            <Link to={`/year/${year.id}/subjects`} key={year.id} className="year-card-link">
+              <div 
+                className="year-card" 
+                style={{ backgroundColor: getCardColor(index) }}
+              >
+                <p className="tip">
+                  {getLocalizedText(year.name_en, year.name_fr, year.name)}
+                </p>
+                <p className="second-text">
+                  {getLocalizedText(year.description_en, year.description_fr, year.description)}
+                </p>
+                <button className="explore-btn">
+                  {t('ui.explore')}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </button>
+              </div>
             </Link>
           ))}
         </div>

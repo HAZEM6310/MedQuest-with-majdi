@@ -3,14 +3,13 @@ import { cn } from "@/lib/utils";
 import { Question } from "@/types";
 import { CheckCircle2, XCircle } from "lucide-react";
 
-// Update the interface to include isPartiallyCorrect
 interface QcmQuestionProps {
   question: Question;
   selectedOptions: string[];
   onOptionSelect: (optionId: string) => void;
   showResult: boolean;
   isCorrect: boolean;
-  isPartiallyCorrect?: boolean; // Add this prop
+  isPartiallyCorrect?: boolean;
   isRetryMode?: boolean;
 }
 
@@ -20,7 +19,7 @@ export default function QcmQuestion({
   onOptionSelect,
   showResult,
   isCorrect,
-  isPartiallyCorrect = false, // Default to false
+  isPartiallyCorrect = false,
   isRetryMode = false, 
 }: QcmQuestionProps) {
   if (!question || !question.options) return null;
@@ -67,7 +66,6 @@ export default function QcmQuestion({
               isClickable && !isSelected && "hover:border-gray-300",
             )}
             onClick={() => {
-              console.log("Option clicked, isRetryMode:", isRetryMode, "isClickable:", isClickable);
               if (isClickable) {
                 onOptionSelect(option.id);
               }

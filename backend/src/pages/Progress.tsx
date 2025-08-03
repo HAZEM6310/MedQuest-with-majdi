@@ -53,6 +53,8 @@ export default function ProgressPage() {
   }, [user]);
 
   const fetchProgressData = async () => {
+    if (!user?.id) return;
+    
     try {
       const { data: quizProgress, error } = await supabase
         .from('quiz_progress')
@@ -60,10 +62,13 @@ export default function ProgressPage() {
           *,
           courses (title, title_en, title_fr)
         `)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('is_completed', true);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching quiz progress:", error);
+        throw error;
+      }
 
       if (!quizProgress || quizProgress.length === 0) {
         setProgressData({
@@ -74,13 +79,16 @@ export default function ProgressPage() {
           recentActivity: [],
           performanceByCourse: [],
         });
+        setLoading(false);
         return;
       }
 
+      // Calculate statistics from quiz progress data
       const totalQuestions = quizProgress.reduce((sum, quiz) => sum + (quiz.questions_answered || 0), 0);
       const totalCorrect = quizProgress.reduce((sum, quiz) => sum + (quiz.score || 0), 0);
       const averageAccuracy = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
 
+      // Prepare recent activity data
       const recentActivity = quizProgress
         .map((quiz) => ({
           id: quiz.id,
@@ -94,6 +102,7 @@ export default function ProgressPage() {
         .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
         .slice(0, 10);
 
+      // Prepare performance by course data
       const performanceByCourse = quizProgress.map((quiz) => ({
         courseName:
           quiz.courses?.[`title_${language}`] ??
@@ -108,7 +117,7 @@ export default function ProgressPage() {
       setProgressData({
         averageAccuracy,
         questionsAttempted: totalQuestions,
-        correctAnswers: totalCorrect,
+        correctAnswers: Math.round(totalCorrect), // Ensure whole number
         completedQuizzes: quizProgress.length,
         recentActivity,
         performanceByCourse,
@@ -176,9 +185,9 @@ export default function ProgressPage() {
       </div>
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="charts">Charts</TabsTrigger>
-          <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+          <TabsTrigger value="overview">{t('progress.overview')}</TabsTrigger>
+          <TabsTrigger value="charts">{t('progress.charts')}</TabsTrigger>
+          <TabsTrigger value="activity">{t('progress.activity')}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
@@ -236,7 +245,7 @@ export default function ProgressPage() {
         </TabsContent>
         <TabsContent value="activity">
           <Input
-            placeholder="Search by course..."
+            placeholder={t('progress.searchByCourse')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full max-w-sm mb-4"
@@ -247,30 +256,31 @@ export default function ProgressPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {filteredActivity.map((activity, idx) => (
-                  <div key={idx} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-2">
-                    <div>
-                      <p className="font-medium">{activity.courseName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {t('progress.completedOn')} {new Date(activity.completedAt).toLocaleDateString()}
-                      </p>
+                {filteredActivity.length > 0 ? (
+                  filteredActivity.map((activity, idx) => (
+                    <div key={idx} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-2">
+                      <div>
+                        <p className="font-medium">{activity.courseName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('progress.completedOn')} {new Date(activity.completedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span
+                          className={`text-sm font-semibold px-2 py-1 rounded-full ${
+                            activity.grade >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {activity.grade} / 20
+                        </span>
+                        <Button asChild size="sm" variant="link">
+                          <Link to={`/quiz/${activity.id}/review`}>{t('progress.viewDetails')}</Link>
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span
-                        className={`text-sm font-semibold px-2 py-1 rounded-full ${
-                          activity.grade >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {activity.grade} / 20
-                      </span>
-                      <Button asChild size="sm" variant="link">
-                        <Link to={`/quiz/${activity.id}/review`}>{t('progress.viewDetails') || 'View Details'}</Link>
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {filteredActivity.length === 0 && (
-                  <p className="text-muted-foreground">No activity found.</p>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground">{t('progress.noActivityFound')}</p>
                 )}
               </div>
             </CardContent>

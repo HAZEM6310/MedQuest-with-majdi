@@ -20,6 +20,16 @@ export interface Voucher {
   credits?: number; // compatibility for legacy code
 }
 
+export interface QuestionGroup {
+  id: string;
+  title: string;
+  description: string;
+  course_id: string;
+  faculty_id?: string;
+  order_index: number;
+  created_at: string;
+}
+
 export interface VoucherStats {
   voucher_id: string;
   code: string;
@@ -31,11 +41,10 @@ export interface VoucherStats {
   total_months_sold: number;
   total_revenue: number;
   created_at: string;
-  user_count?: number; // Add this new field
+  user_count?: number;
   // other fields...
 }
 
-// Add Faculty interface
 export interface Faculty {
   id: string;
   name: string;
@@ -49,7 +58,6 @@ export interface Faculty {
   created_at: string;
 }
 
-// Update Question interface to include faculty_id
 export interface Question {
   id: string;
   course_id: string;
@@ -60,12 +68,14 @@ export interface Question {
   explanation?: string;
   explanation_en?: string;
   explanation_fr?: string;
-  created_at: string;
-  options?: Option[];
+  created_at?: string;
+  options?: QuestionOption[];
   faculty?: Faculty;
+  group_id?: string; // Added for clinical cases
+  order_index?: number; // Added for ordering within a group
 }
 
-export interface Option {
+export interface QuestionOption {
   id: string;
   question_id: string;
   text: string;
@@ -99,12 +109,14 @@ export interface QuizProgress {
   user_id: string;
   course_id: string;
   current_question?: number;
+  current_group?: number; // Added for clinical cases
   user_answers?: {[key: string]: string[]};
   score?: number;
   questions_answered?: number;
   is_completed?: boolean;
   final_grade?: number;
   wrong_answers?: string[];
+  partially_correct_questions?: string[]; // Changed to string[] for question IDs
   created_at: string;
   updated_at: string;
 }
@@ -357,6 +369,51 @@ export type Database = {
           },
         ]
       }
+      question_groups: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          course_id: string
+          faculty_id: string | null
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          course_id: string
+          faculty_id?: string | null
+          order_index: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          course_id?: string
+          faculty_id?: string | null
+          order_index?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_groups_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_groups_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculties"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       questions: {
         Row: {
           course_id: string
@@ -369,6 +426,8 @@ export type Database = {
           text_en: string | null
           text_fr: string | null
           faculty_id: string | null
+          group_id: string | null
+          order_index: number | null
         }
         Insert: {
           course_id: string
@@ -381,6 +440,8 @@ export type Database = {
           text_en?: string | null
           text_fr?: string | null
           faculty_id?: string | null
+          group_id?: string | null
+          order_index?: number | null
         }
         Update: {
           course_id?: string
@@ -393,6 +454,8 @@ export type Database = {
           text_en?: string | null
           text_fr?: string | null
           faculty_id?: string | null
+          group_id?: string | null
+          order_index?: number | null
         }
         Relationships: [
           {
@@ -408,6 +471,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "faculties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "question_groups"
+            referencedColumns: ["id"]
           }
         ]
       }
@@ -416,6 +486,7 @@ export type Database = {
           course_id: string
           created_at: string
           current_question: number | null
+          current_group: number | null
           final_grade: number | null
           id: string
           is_completed: boolean | null
@@ -425,11 +496,13 @@ export type Database = {
           user_answers: Json | null
           user_id: string
           wrong_answers: string[] | null
+          partially_correct_questions: string[] | null
         }
         Insert: {
           course_id: string
           created_at?: string
           current_question?: number | null
+          current_group?: number | null
           final_grade?: number | null
           id?: string
           is_completed?: boolean | null
@@ -439,11 +512,13 @@ export type Database = {
           user_answers?: Json | null
           user_id: string
           wrong_answers?: string[] | null
+          partially_correct_questions?: string[] | null
         }
         Update: {
           course_id?: string
           created_at?: string
           current_question?: number | null
+          current_group?: number | null
           final_grade?: number | null
           id?: string
           is_completed?: boolean | null
@@ -453,6 +528,7 @@ export type Database = {
           user_answers?: Json | null
           user_id?: string
           wrong_answers?: string[] | null
+          partially_correct_questions?: string[] | null
         }
         Relationships: [
           {

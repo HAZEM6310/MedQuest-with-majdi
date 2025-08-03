@@ -63,7 +63,6 @@ export default function NotesPanel({ questionId }: NotesPanelProps) {
           .single();
 
         if (error && error.code !== 'PGRST116') {
-          // PGRST116 means no rows returned, which is not an error for us
           console.error('Error fetching note:', error);
           toast.error('Failed to load your note');
         }
@@ -73,7 +72,6 @@ export default function NotesPanel({ questionId }: NotesPanelProps) {
           setNoteContent(data.note_content);
         } else {
           setNoteContent('');
-          // Enable editing mode when there's no existing note
           setIsEditing(true);
         }
       } catch (error) {
@@ -189,47 +187,49 @@ export default function NotesPanel({ questionId }: NotesPanelProps) {
   }
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xl flex items-center">
-          <Pencil className="w-5 h-5 mr-2" /> 
+    <Card className="h-full flex flex-col relative">
+      <CardHeader className="pb-2 sticky top-0 z-10 bg-white">
+        <CardTitle className="text-lg flex items-center">
+          <Pencil className="w-4 h-4 mr-2" /> 
           {t('notes.yourNotes')}
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="flex-1 flex flex-col">
+      {/* Content with padding at bottom to account for fixed footer */}
+      <CardContent className="p-2 pb-16 flex-1 overflow-auto">
         {isEditing ? (
           <Textarea
             value={noteContent}
             onChange={(e) => setNoteContent(e.target.value)}
             placeholder={t('notes.placeholder')}
-            className="flex-1 min-h-[150px] resize-none"
+            className="resize-none min-h-[200px]"
             autoFocus
           />
         ) : note ? (
-          <div className="flex-1 overflow-auto">
+          <div>
             <div className="whitespace-pre-wrap">{note.note_content}</div>
-            <div className="text-xs text-muted-foreground mt-4">
+            <div className="text-xs text-muted-foreground mt-2">
               {t('notes.lastUpdated')} {formatDate(note.updated_at)}
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center flex-col text-center text-muted-foreground">
-            <AlertCircle className="w-8 h-8 mb-2 opacity-50" />
-            <p>{t('notes.noNoteYet')}</p>
-            <p className="text-sm">{t('notes.clickEditToStart')}</p>
+          <div className="flex flex-col items-center justify-center h-[200px] text-center text-muted-foreground">
+            <AlertCircle className="w-6 h-6 mb-1 opacity-50" />
+            <p className="text-sm">{t('notes.noNoteYet')}</p>
+            <p className="text-xs">{t('notes.clickEditToStart')}</p>
           </div>
         )}
       </CardContent>
 
-      <CardFooter className="pt-3 flex justify-between border-t">
+      {/* Fixed footer at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-2 flex justify-between z-10 shadow-md">
         {isEditing ? (
           <>
-            <Button variant="outline" onClick={handleCancel}>
+            <Button variant="outline" size="sm" onClick={handleCancel}>
               {t('ui.cancel')}
             </Button>
-            <Button onClick={saveNote} disabled={noteContent.trim() === ''}>
-              <Save className="w-4 h-4 mr-2" /> {t('ui.save')}
+            <Button size="sm" onClick={saveNote} disabled={noteContent.trim() === ''}>
+              <Save className="w-3 h-3 mr-1" /> {t('ui.save')}
             </Button>
           </>
         ) : (
@@ -238,7 +238,7 @@ export default function NotesPanel({ questionId }: NotesPanelProps) {
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm">
-                    <Trash2 className="w-4 h-4 mr-2" /> {t('ui.delete')}
+                    <Trash2 className="w-3 h-3 mr-1" /> {t('ui.delete')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -257,12 +257,12 @@ export default function NotesPanel({ questionId }: NotesPanelProps) {
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Button onClick={handleEdit}>
-              <Pencil className="w-4 h-4 mr-2" /> {hasNote ? t('ui.edit') : t('notes.createNote')}
+            <Button size="sm" onClick={handleEdit}>
+              <Pencil className="w-3 h-3 mr-1" /> {hasNote ? t('ui.edit') : t('notes.createNote')}
             </Button>
           </>
         )}
-      </CardFooter>
+      </div>
     </Card>
   );
 }

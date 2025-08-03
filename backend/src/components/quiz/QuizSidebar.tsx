@@ -31,22 +31,22 @@ export default function QuizSidebar({
         onValueChange={setActiveTab}
         className="w-full h-full flex flex-col"
       >
-        <TabsList className="grid grid-cols-2">
-          <TabsTrigger value="progress" className="flex items-center gap-2">
-            <PieChart className="w-4 h-4" />
+        <TabsList className="grid grid-cols-2 sticky top-0 z-10">
+          <TabsTrigger value="progress" className="flex items-center gap-1 text-sm py-1">
+            <PieChart className="w-3 h-3" />
             <span>{t('quiz.progress')}</span>
           </TabsTrigger>
-          <TabsTrigger value="notes" className="flex items-center gap-2">
-            <Pencil className="w-4 h-4" />
+          <TabsTrigger value="notes" className="flex items-center gap-1 text-sm py-1">
+            <Pencil className="w-3 h-3" />
             <span>{t('quiz.notes')}</span>
           </TabsTrigger>
         </TabsList>
         
-        <TabsContent value="progress" className="flex-1 mt-2">
+        <TabsContent value="progress" className="flex-1 mt-1 overflow-hidden">
           {children}
         </TabsContent>
         
-        <TabsContent value="notes" className="flex-1 mt-2">
+        <TabsContent value="notes" className="flex-1 mt-1 overflow-hidden">
           <NotesPanel questionId={questionId} />
         </TabsContent>
       </Tabs>
