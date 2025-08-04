@@ -9,6 +9,7 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 import { LoadingProvider } from "@/contexts/loading-context";
 import Navbar from "@/components/layout/Navbar";
 import Sidebar from "@/components/Sidebar";
+import TimeCard from "@/components/TimeCard"; // Import the TimeCard component
 import Index from "./pages/Index";
 import YearSubjects from "./pages/YearSubjects";
 import SubjectCourses from "./pages/SubjectCourses";
@@ -27,6 +28,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import EnterEmail from "./pages/EnterEmail";
 import ResetPassword from "./pages/ResetPassword";
 import FacultyPage from '@/pages/Faculty';
+import FloatingTimeCard from "./components/FloatingTimeCard";
+
 
 const queryClient = new QueryClient();
 
@@ -98,6 +101,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      
+      {/* Add TimeCard component */}
+      <TimeCard />
     </div>
   );
 }
@@ -112,6 +118,8 @@ function App() {
               <BrowserRouter>
                 <LoadingProvider>
                   <MainRouter />
+                  <FloatingTimeCard /> {/* Renamed component */}
+
                   <Toaster />
                 </LoadingProvider>
               </BrowserRouter>
