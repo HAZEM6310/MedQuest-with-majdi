@@ -268,6 +268,27 @@ export default function Admin() {
     explanation_en: "",
     explanation_fr: "",
   });
+
+  // State for Clinical Cases - removed order_index
+  const [newClinicalCase, setNewClinicalCase] = useState({
+    course_id: "",
+    faculty_id: "null",
+    title_en: "",
+    title_fr: "",
+    description_en: "",
+    description_fr: "",
+    questions: [] as {
+      text_en: string;
+      text_fr: string;
+      explanation_en: string;
+      explanation_fr: string;
+      options: {
+        text_en: string;
+        text_fr: string;
+        is_correct: boolean;
+      }[];
+    }[]
+  });
   
   const [editingYear, setEditingYear] = useState<null | (Year & { id: string })>(null);
 
@@ -489,6 +510,237 @@ export default function Admin() {
     },
   });
 
+  // Fixed Clinical Case mutation - removed description_en and description_fr fields
+  const addClinicalCaseMutation = useMutation({
+    mutationFn: async () => {
+      // First, create the question group
+      const { data: group, error: groupError } = await supabase
+        .from('question_groups')
+        .insert([{
+          course_id: newClinicalCase.course_id,
+          faculty_id: newClinicalCase.faculty_id === "null" ? null : newClinicalCase.faculty_id,
+          title: newClinicalCase.title_en,
+          title_en: newClinicalCase.title_en,
+          title_fr: newClinicalCase.title_fr,
+          description: newClinicalCase.description_en,
+          // Removed description_en and description_fr fields that don't exist in the database
+        }])
+        .select()
+        .single();
+    
+      if (groupError) throw groupError;
+    
+      // Then create all the questions for this group
+      for (const questionData of newClinicalCase.questions) {
+        // Insert question
+        const { data: question, error: questionError } = await supabase
+          .from('questions')
+          .insert([{
+            course_id: newClinicalCase.course_id,
+            group_id: group.id,
+            faculty_id: newClinicalCase.faculty_id === "null" ? null : newClinicalCase.faculty_id,
+            text: questionData.text_en,
+            text_en: questionData.text_en,
+            text_fr: questionData.text_fr,
+            explanation: questionData.explanation_en,
+            explanation_en: questionData.explanation_en,
+            explanation_fr: questionData.explanation_fr
+          }])
+          .select()
+          .single();
+          
+        if (questionError) throw questionError;
+        
+        // Insert options
+        const optionsData = questionData.options.map(option => ({
+          question_id: question.id,
+          text: option.text_en,
+          text_en: option.text_en,
+          text_fr: option.text_fr,
+          is_correct: option.is_correct
+        }));
+        
+        const { error: optionsError } = await supabase
+          .from('options')
+          .insert(optionsData);
+          
+        if (optionsError) throw optionsError;
+      }
+    
+      return group;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
+      toast.success('Clinical case added successfully');
+      setNewClinicalCase({
+        course_id: "",
+        faculty_id: "null",
+        title_en: "",
+        title_fr: "",
+        description_en: "",
+        description_fr: "",
+        questions: []
+      });
+    },
+    onError: (error) => {
+      console.error('Error adding clinical case:', error);
+      toast.error('Failed to add clinical case');
+    }
+  });
+
+  // Clinical case handlers
+  const addCaseQuestion = () => {
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: [
+        ...newClinicalCase.questions,
+        {
+          text_en: "",
+          text_fr: "",
+          explanation_en: "",
+          explanation_fr: "",
+          options: [
+            { text_en: "", text_fr: "", is_correct: false },
+            { text_en: "", text_fr: "", is_correct: false }
+          ]
+        }
+      ]
+    });
+  };
+
+  const removeCaseQuestion = (index: number) => {
+    const updatedQuestions = [...newClinicalCase.questions];
+    updatedQuestions.splice(index, 1);
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: updatedQuestions
+    });
+  };
+
+  const handleCaseQuestionChange = (
+    qIndex: number,
+    field: 'text_en' | 'text_fr' | 'explanation_en' | 'explanation_fr',
+    value: string
+  ) => {
+    const updatedQuestions = [...newClinicalCase.questions];
+    updatedQuestions[qIndex] = {
+      ...updatedQuestions[qIndex],
+      [field]: value
+    };
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: updatedQuestions
+    });
+  };
+
+  const addCaseOption = (qIndex: number) => {
+    const updatedQuestions = [...newClinicalCase.questions];
+    updatedQuestions[qIndex] = {
+      ...updatedQuestions[qIndex],
+      options: [
+        ...updatedQuestions[qIndex].options,
+        { text_en: "", text_fr: "", is_correct: false }
+      ]
+    };
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: updatedQuestions
+    });
+  };
+
+  const removeCaseOption = (qIndex: number, oIndex: number) => {
+    if (newClinicalCase.questions[qIndex].options.length <= 2) return;
+    
+    const updatedQuestions = [...newClinicalCase.questions];
+    updatedQuestions[qIndex] = {
+      ...updatedQuestions[qIndex],
+      options: updatedQuestions[qIndex].options.filter((_, i) => i !== oIndex)
+    };
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: updatedQuestions
+    });
+  };
+
+  const handleCaseOptionChange = (
+    qIndex: number,
+    oIndex: number,
+    field: 'text_en' | 'text_fr',
+    value: string
+  ) => {
+    const updatedQuestions = [...newClinicalCase.questions];
+    updatedQuestions[qIndex] = {
+      ...updatedQuestions[qIndex],
+      options: updatedQuestions[qIndex].options.map((opt, i) => {
+        if (i === oIndex) {
+          return { ...opt, [field]: value };
+        }
+        return opt;
+      })
+    };
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: updatedQuestions
+    });
+  };
+
+  const handleCaseOptionCorrectChange = (
+    qIndex: number,
+    oIndex: number,
+    isCorrect: boolean
+  ) => {
+    const updatedQuestions = [...newClinicalCase.questions];
+    updatedQuestions[qIndex] = {
+      ...updatedQuestions[qIndex],
+      options: updatedQuestions[qIndex].options.map((opt, i) => {
+        if (i === oIndex) {
+          return { ...opt, is_correct: isCorrect };
+        }
+        return opt;
+      })
+    };
+    setNewClinicalCase({
+      ...newClinicalCase,
+      questions: updatedQuestions
+    });
+  };
+
+  const isClinicalCaseValid = () => {
+    if (
+      !newClinicalCase.course_id ||
+      !newClinicalCase.title_en ||
+      !newClinicalCase.title_fr ||
+      !newClinicalCase.description_en ||
+      !newClinicalCase.description_fr ||
+      newClinicalCase.questions.length === 0
+    ) {
+      return false;
+    }
+    
+    // Check each question
+    for (const question of newClinicalCase.questions) {
+      if (
+        !question.text_en ||
+        !question.text_fr ||
+        question.options.length < 2
+      ) {
+        return false;
+      }
+      
+      // Check if at least one option is marked as correct
+      if (!question.options.some(opt => opt.is_correct)) {
+        return false;
+      }
+      
+      // Check if all options have text
+      if (question.options.some(opt => !opt.text_en || !opt.text_fr)) {
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
   const handleOptionChange = (index: number, field: 'text_en' | 'text_fr', value: string) => {
     const updatedOptions = [...newQuestion.options];
     updatedOptions[index] = { ...updatedOptions[index], [field]: value };
@@ -528,10 +780,11 @@ export default function Admin() {
       </div>
 
       <Tabs defaultValue="content" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="content">{t('admin.manageContent')}</TabsTrigger>
           <TabsTrigger value="courses">Course Sections</TabsTrigger>
           <TabsTrigger value="questions">{t('admin.addQuestion')}</TabsTrigger>
+          <TabsTrigger value="clinical-cases">Clinical Cases</TabsTrigger>
           <TabsTrigger value="bulk-upload">
             <Upload className="h-4 w-4 mr-2" />
             Bulk Upload
@@ -930,6 +1183,252 @@ export default function Admin() {
           </Card>
         </TabsContent>
 
+        {/* Clinical Cases Tab - Updated to remove Order Index */}
+        <TabsContent value="clinical-cases">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                Add Clinical Case
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                {/* Course Selection */}
+                <div>
+                  <Label htmlFor="case-course">Course</Label>
+                  <Select 
+                    value={newClinicalCase.course_id} 
+                    onValueChange={(value) => setNewClinicalCase({...newClinicalCase, course_id: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id}>
+                          {course.title_en || course.title} / {course.title_fr || course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Faculty Selection */}
+                <div>
+                  <Label htmlFor="case-faculty">Faculty (Optional)</Label>
+                  <Select 
+                    value={newClinicalCase.faculty_id} 
+                    onValueChange={(value) => setNewClinicalCase({...newClinicalCase, faculty_id: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select faculty (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="null">No Faculty</SelectItem>
+                      {faculties.map((faculty) => (
+                        <SelectItem key={faculty.id} value={faculty.id}>
+                          {faculty.name_en || faculty.name} {faculty.university_name && `- ${faculty.university_name_en || faculty.university_name}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Case Title - Order Index removed */}
+              <div>
+                <Label htmlFor="case-title-en">Title (English) *</Label>
+                <Input
+                  id="case-title-en"
+                  placeholder="Clinical Case Title (EN)"
+                  value={newClinicalCase.title_en}
+                  onChange={(e) => setNewClinicalCase({...newClinicalCase, title_en: e.target.value})}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="case-title-fr">Title (French) *</Label>
+                <Input
+                  id="case-title-fr"
+                  placeholder="Clinical Case Title (FR)"
+                  value={newClinicalCase.title_fr}
+                  onChange={(e) => setNewClinicalCase({...newClinicalCase, title_fr: e.target.value})}
+                />
+              </div>
+              
+              {/* Case Description */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="case-desc-en">Description (English) *</Label>
+                  <Textarea
+                    id="case-desc-en"
+                    placeholder="Clinical case description in English..."
+                    value={newClinicalCase.description_en}
+                    onChange={(e) => setNewClinicalCase({...newClinicalCase, description_en: e.target.value})}
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="case-desc-fr">Description (French) *</Label>
+                  <Textarea
+                    id="case-desc-fr"
+                    placeholder="Clinical case description in French..."
+                    value={newClinicalCase.description_fr}
+                    onChange={(e) => setNewClinicalCase({...newClinicalCase, description_fr: e.target.value})}
+                    rows={4}
+                  />
+                </div>
+              </div>
+              
+              {/* Case Questions */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <Label>Questions in this Clinical Case *</Label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addCaseQuestion}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Add Question
+                  </Button>
+                </div>
+                
+                {newClinicalCase.questions.map((question, qIndex) => (
+                  <div key={qIndex} className="border rounded-md p-4 mb-4 bg-muted/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">Question {qIndex + 1}</h4>
+                      {newClinicalCase.questions.length > 1 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => removeCaseQuestion(qIndex)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Question Text */}
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <Label htmlFor={`case-q${qIndex}-text-en`}>Question (English) *</Label>
+                        <Textarea
+                          id={`case-q${qIndex}-text-en`}
+                          placeholder="Question text in English"
+                          value={question.text_en}
+                          onChange={(e) => handleCaseQuestionChange(qIndex, 'text_en', e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`case-q${qIndex}-text-fr`}>Question (French) *</Label>
+                        <Textarea
+                          id={`case-q${qIndex}-text-fr`}
+                          placeholder="Question text in French"
+                          value={question.text_fr}
+                          onChange={(e) => handleCaseQuestionChange(qIndex, 'text_fr', e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Question Options */}
+                    <div className="space-y-2 mb-3">
+                      <Label>Answer Options (Check all correct answers) *</Label>
+                      {question.options.map((option, oIndex) => (
+                        <div key={oIndex} className="flex items-center gap-3">
+                          <div className="flex items-center">
+                            <Checkbox
+                              checked={option.is_correct}
+                              onCheckedChange={(checked) => handleCaseOptionCorrectChange(qIndex, oIndex, !!checked)}
+                              className="mr-2"
+                            />
+                            <span className="text-sm font-medium w-6">
+                              {String.fromCharCode(65 + oIndex)}:
+                            </span>
+                          </div>
+                          <Input
+                            placeholder={`Option ${String.fromCharCode(65 + oIndex)} (EN)`}
+                            value={option.text_en}
+                            onChange={(e) => handleCaseOptionChange(qIndex, oIndex, 'text_en', e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            placeholder={`Option ${String.fromCharCode(65 + oIndex)} (FR)`}
+                            value={option.text_fr}
+                            onChange={(e) => handleCaseOptionChange(qIndex, oIndex, 'text_fr', e.target.value)}
+                            className="flex-1"
+                          />
+                          {question.options.length > 2 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeCaseOption(qIndex, oIndex)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => addCaseOption(qIndex)}
+                        className="mt-2"
+                      >
+                        <PlusCircle className="h-4 w-4 mr-1" /> Add Option
+                      </Button>
+                    </div>
+                    
+                    {/* Question Explanation */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor={`case-q${qIndex}-exp-en`}>Explanation (English)</Label>
+                        <Textarea
+                          id={`case-q${qIndex}-exp-en`}
+                          placeholder="Explanation in English"
+                          value={question.explanation_en}
+                          onChange={(e) => handleCaseQuestionChange(qIndex, 'explanation_en', e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`case-q${qIndex}-exp-fr`}>Explanation (French)</Label>
+                        <Textarea
+                          id={`case-q${qIndex}-exp-fr`}
+                          placeholder="Explanation in French"
+                          value={question.explanation_fr}
+                          onChange={(e) => handleCaseQuestionChange(qIndex, 'explanation_fr', e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {newClinicalCase.questions.length === 0 && (
+                  <div className="text-center py-6 border rounded-md border-dashed">
+                    <p className="text-muted-foreground">No questions added yet. Click 'Add Question' to start.</p>
+                  </div>
+                )}
+              </div>
+              
+              <Button 
+                onClick={() => addClinicalCaseMutation.mutate()}
+                disabled={!isClinicalCaseValid() || addClinicalCaseMutation.isPending}
+                className="w-full bg-secondary hover:bg-secondary/90"
+              >
+                {addClinicalCaseMutation.isPending ? "Saving..." : "Add Clinical Case"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Bulk Upload Tab */}
         <TabsContent value="bulk-upload">
           <BulkQuestionUpload courses={courses} faculties={faculties} />
@@ -1064,7 +1563,7 @@ export default function Admin() {
                         ))}
                       </div>
                     </div>
-                    <div className="flex gap-2 mt-4">
+                     <div className="flex gap-2 mt-4">
                       <Button onClick={handleSaveEditQuestion} className="w-full">Save</Button>
                       <Button onClick={handleDeleteQuestion} variant="destructive" className="w-full">Delete</Button>
                     </div>

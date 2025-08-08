@@ -59,7 +59,7 @@ export default function QcmBody({
   onPauseResume,
   onGroupSelect,
 }: QcmBodyProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [quitDialogOpen, setQuitDialogOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -101,6 +101,14 @@ export default function QcmBody({
     return 'incorrect';
   };
 
+  // Function to get text in current language with fallback
+  const getLocalizedText = (en?: string, fr?: string, defaultText?: string) => {
+    if (language === 'fr') {
+      return fr || en || defaultText || '';
+    }
+    return en || fr || defaultText || '';
+  };
+
   return (
     <div className="h-full flex flex-col md:flex-row relative">
       {/* Pause Overlay */}
@@ -131,7 +139,14 @@ export default function QcmBody({
         {/* Header */}
         <header className="bg-white border-b p-3 flex justify-between items-center sticky top-0 z-10">
           <div>
-            <h1 className="text-lg font-bold text-primary">{currentGroup?.title || "Quiz"}</h1>
+            <h1 className="text-lg font-bold text-primary">
+              {/* For single questions, show "Question X" instead of "Case: Question X" */}
+              {currentGroup ? (
+                (currentGroup as any).is_single_question ? 
+                getLocalizedText(currentGroup.title_en, currentGroup.title_fr, currentGroup.title) : // Just "Question X" for standalone
+                getLocalizedText(currentGroup.title_en, currentGroup.title_fr, currentGroup.title)    // Regular title for clinical cases
+              ) : "Quiz"}
+            </h1>
             <p className="text-sm text-muted-foreground">{getCourseSubject()}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -171,32 +186,48 @@ export default function QcmBody({
           </div>
         </header>
 
-        {/* Clinical Case Content - With bottom padding for fixed footer */}
+        {/* Question Content - With bottom padding for fixed footer */}
         <div 
           ref={contentRef} 
           className="flex-1 overflow-y-auto p-4 pb-16"
         >
-          {/* Case description */}
-          {currentGroup?.description && (
+          {/* Case description - only show for clinical cases (not single questions) */}
+          {currentGroup?.description && !(currentGroup as any).is_single_question && (
             <div className="mb-6 p-4 bg-blue-50 rounded-xl">
-              <h3 className="text-lg font-medium mb-2">Case: {currentGroup.title}</h3>
-              <p className="text-gray-800 whitespace-pre-wrap">{currentGroup.description}</p>
+              <h3 className="text-lg font-medium mb-2">
+                {t('quiz.case')}: {getLocalizedText(currentGroup.title_en, currentGroup.title_fr, currentGroup.title)}
+              </h3>
+              <p className="text-gray-800 whitespace-pre-wrap">
+                {getLocalizedText(currentGroup.description_en, currentGroup.description_fr, currentGroup.description)}
+              </p>
             </div>
           )}
 
-          {/* Multiple questions for this case */}
+          {/* Questions - different display for clinical cases vs single questions */}
           <div className="space-y-8">
             {groupQuestions.map((question, idx) => (
               <div key={question.id} className="p-4 border rounded-lg bg-white shadow-sm">
-                <h4 className="font-medium mb-3">Question {idx + 1}: {question.text}</h4>
+                {/* For clinical cases, show "Question X: text" */}
+                {!(currentGroup as any).is_single_question && (
+                  <h4 className="font-medium mb-3">
+                    {t('quiz.question')} {idx + 1}: {getLocalizedText(question.text_en, question.text_fr, question.text)}
+                  </h4>
+                )}
+                {/* For standalone questions, don't show the numbered prefix */}
+                {(currentGroup as any).is_single_question && (
+                  <h4 className="font-medium mb-3">
+                    {getLocalizedText(question.text_en, question.text_fr, question.text)}
+                  </h4>
+                )}
                 <QcmQuestion
                   question={question}
                   selectedOptions={selectedOptions[question.id] || []}
                   onOptionSelect={(optionId) => onOptionSelect(question.id, optionId)}
-                  showResult={isRetryMode ? false : (showResult && userAnswers[question.id])}
+                  showResult={isRetryMode ? false : (showResult && !!userAnswers[question.id])}
                   isCorrect={correctQuestions.has(question.id)}
                   isPartiallyCorrect={partiallyCorrectQuestions.has(question.id)}
-                  isRetryMode={isRetryMode} 
+                  isRetryMode={isRetryMode}
+                  currentLanguage={language} // Pass language to QcmQuestion component
                 />
               </div>
             ))}

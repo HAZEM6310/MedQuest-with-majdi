@@ -6,6 +6,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTheme } from "@/hooks/useTheme";
 import { useSearchParams } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { 
+  BarChart2, Calendar, Percent, Timer, CheckCircle, 
+  XCircle, AlertCircle, ExternalLink 
+} from "lucide-react";
 
 export default function CourseDetail() {
   const [searchParams] = useSearchParams();
@@ -20,13 +26,18 @@ export default function CourseDetail() {
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [selectedFacultyId, setSelectedFacultyId] = useState<string | "all">("all");
   const [loading, setLoading] = useState(true);
+  const [recentAttempts, setRecentAttempts] = useState<any[]>([]);
+  const [attemptsLoading, setAttemptsLoading] = useState(true);
   
   const { theme } = useTheme();
 
   useEffect(() => {
     if (!courseId) return;
     fetchCourseData();
-  }, [courseId]);
+    if (user?.id) {
+      fetchRecentAttempts();
+    }
+  }, [courseId, user]);
   
   useEffect(() => {
     if (facultyParam) {
@@ -85,6 +96,51 @@ export default function CourseDetail() {
     }
   };
 
+  const fetchRecentAttempts = async () => {
+    setAttemptsLoading(true);
+    try {
+      // Fetch recent attempts for this course by the current user
+      const { data, error } = await supabase
+        .from('quiz_progress')
+        .select('*')
+        .eq('course_id', courseId)
+        .eq('user_id', user?.id)
+        .order('updated_at', { ascending: false })
+        .limit(5);
+        
+      if (error) throw error;
+      
+      // Transform data to match the required format
+      const formattedAttempts = data?.map(attempt => {
+        // Calculate correct, incorrect, and partial answers
+        const correct = attempt.score || 0;
+        const totalAnswered = attempt.questions_answered || 0;
+        // We don't have explicit partial score data, so we're assuming there's no partial
+        const partial = 0;
+        const incorrect = totalAnswered - correct - partial;
+        
+        return {
+          id: attempt.id,
+          grade: attempt.final_grade || 0,
+          questionsAnswered: totalAnswered,
+          totalQuestions: attempt.total_questions || totalAnswered,
+          duration: attempt.duration || 0,
+          completedAt: attempt.updated_at,
+          isCompleted: attempt.is_completed,
+          correct,
+          incorrect,
+          partial
+        };
+      }) || [];
+      
+      setRecentAttempts(formattedAttempts);
+    } catch (error) {
+      console.error('Error fetching recent attempts:', error);
+    } finally {
+      setAttemptsLoading(false);
+    }
+  };
+
   const getLocalizedText = (enText?: string, frText?: string, fallback?: string) =>
     language === "en" ? enText ?? fallback ?? "" : frText ?? fallback ?? "";
 
@@ -98,6 +154,31 @@ export default function CourseDetail() {
   const startQuiz = () => {
     // Navigate to the correct quiz URL path
     navigate(`/courses/${courseId}/quiz${selectedFacultyId !== "all" ? `?faculty=${selectedFacultyId}` : ''}`);
+  };
+
+  // Format duration from seconds to hours, minutes, seconds
+  const formatDuration = (durationInSeconds: number) => {
+    if (!durationInSeconds) return "-";
+    
+    const hours = Math.floor(durationInSeconds / 3600);
+    const minutes = Math.floor((durationInSeconds % 3600) / 60);
+    const seconds = Math.floor(durationInSeconds % 60);
+    
+    return [
+      hours > 0 ? `${hours}h` : "",
+      minutes > 0 ? `${minutes}min` : "",
+      `${seconds}sec`
+    ].filter(Boolean).join(" ");
+  };
+
+  // Format date to DD/MM/YY
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit'
+    });
   };
 
   if (loading) {
@@ -417,6 +498,109 @@ export default function CourseDetail() {
           </button>
         </div>
       </div>
+
+      {/* Recent Attempts Section */}
+      {user && (
+        <div className="w-full max-w-2xl px-4 mt-10">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('progress.recentAttempts')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {attemptsLoading ? (
+                <div className="text-center py-4">
+                  <p>{t('ui.loading')}...</p>
+                </div>
+              ) : recentAttempts.length > 0 ? (
+                <div className="space-y-4">
+                  {recentAttempts.map((attempt, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                        <div>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            attempt.isCompleted 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {attempt.isCompleted ? t('quiz.completed') : t('quiz.inProgress')}
+                          </span>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {formatDate(attempt.completedAt)}
+                          </p>
+                        </div>
+                        <Button asChild size="sm" variant="outline">
+                          <Link to={`/quiz/${attempt.id}/review`}>
+                            {t('progress.viewDetails')}
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Link>
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                        <div className="flex items-center gap-2">
+                          <BarChart2 className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="text-xs font-medium block">{t('progress.progress')}</span>
+                            <span className="text-sm">{attempt.questionsAnswered}/{attempt.totalQuestions}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Percent className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="text-xs font-medium block">{t('progress.grade')}</span>
+                            <span className="text-sm">{attempt.grade.toFixed(1)}/20</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <Timer className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <span className="text-xs font-medium block">{t('progress.duration')}</span>
+                            <span className="text-sm">{formatDuration(attempt.duration)}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <div>
+                            <span className="text-xs font-medium block">{t('progress.correct')}</span>
+                            <span className="text-sm">{attempt.correct}/{attempt.totalQuestions}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Results progress bar */}
+                      <div className="relative pt-1">
+                        <div className="flex h-2 overflow-hidden text-xs bg-gray-200 rounded">
+                          <div 
+                            style={{ width: `${(attempt.correct / attempt.totalQuestions) * 100}%` }} 
+                            className="flex flex-col justify-center text-center text-white bg-green-500 shadow-none whitespace-nowrap"
+                          ></div>
+                          {attempt.partial > 0 && (
+                            <div 
+                              style={{ width: `${(attempt.partial / attempt.totalQuestions) * 100}%` }} 
+                              className="flex flex-col justify-center text-center text-white bg-yellow-500 shadow-none whitespace-nowrap"
+                            ></div>
+                          )}
+                          <div 
+                            style={{ width: `${(attempt.incorrect / attempt.totalQuestions) * 100}%` }} 
+                            className="flex flex-col justify-center text-center text-white bg-red-500 shadow-none whitespace-nowrap"
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">{t('progress.noAttemptsYet')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

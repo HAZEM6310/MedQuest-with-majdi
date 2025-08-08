@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, BookOpen, CheckCircle, Clock,
+  Calendar, Percent, Timer, BarChart2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -28,6 +29,12 @@ interface ProgressData {
     courseName: string;
     grade: number;
     completedAt: string;
+    questionsAnswered: number;
+    totalQuestions: number;
+    duration: number; // in seconds
+    correct: number;
+    incorrect: number;
+    partial: number;
   }[];
   performanceByCourse: {
     courseName: string;
@@ -35,7 +42,12 @@ interface ProgressData {
   }[];
 }
 
-const COLORS = ['#8884d8', '#82ca9d'];
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
+const CHART_COLORS = {
+  correct: '#4ade80',
+  incorrect: '#f87171',
+  partial: '#facc15'
+};
 
 export default function ProgressPage() {
   const { user } = useAuth();
@@ -63,7 +75,7 @@ export default function ProgressPage() {
           courses (title, title_en, title_fr)
         `)
         .eq('user_id', user.id)
-        .eq('is_completed', true);
+        .order('updated_at', { ascending: false });
 
       if (error) {
         console.error("Error fetching quiz progress:", error);
@@ -83,6 +95,9 @@ export default function ProgressPage() {
         return;
       }
 
+      // Filter for completed quizzes for some stats
+      const completedQuizzes = quizProgress.filter(quiz => quiz.is_completed);
+      
       // Calculate statistics from quiz progress data
       const totalQuestions = quizProgress.reduce((sum, quiz) => sum + (quiz.questions_answered || 0), 0);
       const totalCorrect = quizProgress.reduce((sum, quiz) => sum + (quiz.score || 0), 0);
@@ -90,35 +105,58 @@ export default function ProgressPage() {
 
       // Prepare recent activity data
       const recentActivity = quizProgress
-        .map((quiz) => ({
-          id: quiz.id,
-          courseName:
-            quiz.courses?.[`title_${language}`] ??
-            quiz.courses?.title ??
-            "Unknown Course",
-          grade: quiz.final_grade || 0,
-          completedAt: quiz.updated_at,
-        }))
-        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
-        .slice(0, 10);
+        .map((quiz) => {
+          // Calculate correct, incorrect, and partial answers
+          const correct = quiz.score || 0;
+          const totalAnswered = quiz.questions_answered || 0;
+          // We don't have explicit partial score data, so we're assuming there's no partial
+          const partial = 0;
+          const incorrect = totalAnswered - correct - partial;
+          
+          return {
+            id: quiz.id,
+            courseName:
+              quiz.courses?.[`title_${language}`] ??
+              quiz.courses?.title ??
+              "Unknown Course",
+            grade: quiz.final_grade || 0,
+            completedAt: quiz.updated_at,
+            questionsAnswered: totalAnswered,
+            totalQuestions: quiz.total_questions || totalAnswered,
+            duration: quiz.duration || 0,
+            correct,
+            incorrect,
+            partial
+          };
+        });
 
       // Prepare performance by course data
-      const performanceByCourse = quizProgress.map((quiz) => ({
-        courseName:
-          quiz.courses?.[`title_${language}`] ??
-          quiz.courses?.title ??
-          "Unknown Course",
-        accuracy:
-          quiz.questions_answered > 0
-            ? (quiz.score / quiz.questions_answered) * 100
-            : 0,
+      const coursePerformance = new Map();
+      quizProgress.forEach(quiz => {
+        const courseName = quiz.courses?.[`title_${language}`] ?? quiz.courses?.title ?? "Unknown Course";
+        if (!coursePerformance.has(courseName)) {
+          coursePerformance.set(courseName, { 
+            totalQuestions: 0, 
+            correctAnswers: 0 
+          });
+        }
+        const current = coursePerformance.get(courseName);
+        current.totalQuestions += quiz.questions_answered || 0;
+        current.correctAnswers += quiz.score || 0;
+      });
+      
+      const performanceByCourse = Array.from(coursePerformance.entries()).map(([courseName, data]) => ({
+        courseName,
+        accuracy: data.totalQuestions > 0 
+          ? (data.correctAnswers / data.totalQuestions) * 100 
+          : 0
       }));
 
       setProgressData({
         averageAccuracy,
         questionsAttempted: totalQuestions,
         correctAnswers: Math.round(totalCorrect), // Ensure whole number
-        completedQuizzes: quizProgress.length,
+        completedQuizzes: completedQuizzes.length,
         recentActivity,
         performanceByCourse,
       });
@@ -127,6 +165,31 @@ export default function ProgressPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Format duration from seconds to hours, minutes, seconds
+  const formatDuration = (durationInSeconds: number) => {
+    if (!durationInSeconds) return "-";
+    
+    const hours = Math.floor(durationInSeconds / 3600);
+    const minutes = Math.floor((durationInSeconds % 3600) / 60);
+    const seconds = Math.floor(durationInSeconds % 60);
+    
+    return [
+      hours > 0 ? `${hours}h` : "",
+      minutes > 0 ? `${minutes}min` : "",
+      `${seconds}sec`
+    ].filter(Boolean).join(" ");
+  };
+
+  // Format date to DD/MM/YY
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit'
+    });
   };
 
   if (!user) {
@@ -168,8 +231,8 @@ export default function ProgressPage() {
   }
 
   const accuracyDistribution = [
-    { name: t('progress.correct'), value: progressData.correctAnswers },
-    { name: t('progress.incorrect'), value: progressData.questionsAttempted - progressData.correctAnswers },
+    { name: t('progress.correct'), value: progressData.correctAnswers, color: CHART_COLORS.correct },
+    { name: t('progress.incorrect'), value: progressData.questionsAttempted - progressData.correctAnswers, color: CHART_COLORS.incorrect },
   ];
 
   // Filtered activity for search
@@ -233,7 +296,7 @@ export default function ProgressPage() {
                       label
                     >
                       {accuracyDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -255,27 +318,92 @@ export default function ProgressPage() {
               <CardTitle>{t('progress.recentActivity')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {filteredActivity.length > 0 ? (
                   filteredActivity.map((activity, idx) => (
-                    <div key={idx} className="flex flex-col md:flex-row md:items-center md:justify-between p-4 border rounded-lg gap-2">
-                      <div>
-                        <p className="font-medium">{activity.courseName}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {t('progress.completedOn')} {new Date(activity.completedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span
-                          className={`text-sm font-semibold px-2 py-1 rounded-full ${
-                            activity.grade >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {activity.grade} / 20
-                        </span>
-                        <Button asChild size="sm" variant="link">
-                          <Link to={`/quiz/${activity.id}/review`}>{t('progress.viewDetails')}</Link>
-                        </Button>
+                    <div key={idx} className="border rounded-lg overflow-hidden">
+                      <div className="p-4 bg-muted/50">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+                          <div>
+                            <h3 className="font-medium">{activity.courseName}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {t('progress.completedOn')} {new Date(activity.completedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span
+                              className={`text-sm font-semibold px-2 py-1 rounded-full ${
+                                activity.grade >= 10 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {activity.grade} / 20
+                            </span>
+                            <Button asChild size="sm" variant="outline">
+                              <Link to={`/quiz/${activity.id}/review`}>{t('progress.viewDetails')}</Link>
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-4 mb-4">
+                          <div className="flex items-center gap-2">
+                            <BarChart2 className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">{t('progress.progress')}:</span>
+                            <span className="text-sm">{activity.questionsAnswered}/{activity.totalQuestions}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Percent className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">{t('progress.grade')}:</span>
+                            <span className="text-sm">{activity.grade.toFixed(1)}/20</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Timer className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">{t('progress.duration')}:</span>
+                            <span className="text-sm">{formatDuration(activity.duration)}</span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">{t('progress.date')}:</span>
+                            <span className="text-sm">{formatDate(activity.completedAt)}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Results chart */}
+                        <div className="relative pt-1">
+                          <div className="flex mb-2 items-center justify-between">
+                            <div>
+                              <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200 mr-1">
+                                {t('progress.correct')}: {activity.correct}
+                              </span>
+                              <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-red-600 bg-red-200 mr-1">
+                                {t('progress.incorrect')}: {activity.incorrect}
+                              </span>
+                              {activity.partial > 0 && (
+                                <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-yellow-600 bg-yellow-200">
+                                  {t('progress.partial')}: {activity.partial}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex h-2 overflow-hidden text-xs bg-gray-200 rounded">
+                            <div 
+                              style={{ width: `${(activity.correct / activity.totalQuestions) * 100}%` }} 
+                              className="flex flex-col justify-center text-center text-white bg-green-500 shadow-none whitespace-nowrap"
+                            ></div>
+                            {activity.partial > 0 && (
+                              <div 
+                                style={{ width: `${(activity.partial / activity.totalQuestions) * 100}%` }} 
+                                className="flex flex-col justify-center text-center text-white bg-yellow-500 shadow-none whitespace-nowrap"
+                              ></div>
+                            )}
+                            <div 
+                              style={{ width: `${(activity.incorrect / activity.totalQuestions) * 100}%` }} 
+                              className="flex flex-col justify-center text-center text-white bg-red-500 shadow-none whitespace-nowrap"
+                            ></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))

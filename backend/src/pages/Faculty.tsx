@@ -5,6 +5,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { Faculty, Subject, Course } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import "@/styles/card.css";
 
 interface FacultySubject extends Subject {
   courses: Course[];
@@ -131,31 +132,49 @@ export default function FacultyPage() {
       {/* Faculty Selection */}
       <div className="mb-10">
         <h2 className="text-xl font-semibold mb-4">{t('faculty.select')}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
           {faculties.map((faculty) => (
-            <Button
+            <div 
               key={faculty.id}
-              variant={selectedFacultyId === faculty.id ? "default" : "outline"}
-              className={`h-auto p-6 text-left flex flex-col items-start justify-between ${
-                selectedFacultyId === faculty.id ? "ring-2 ring-primary" : ""
-              }`}
+              className={`card ${selectedFacultyId === faculty.id ? "selected" : ""}`}
               onClick={() => setSelectedFacultyId(faculty.id)}
             >
-              <div>
-                <h3 className="font-bold text-lg mb-1">
-                  {getLocalizedText(faculty.name_en, faculty.name_fr, faculty.name)}
-                </h3>
-                {faculty.university_name && (
-                  <p className="text-sm text-muted-foreground">
-                    {getLocalizedText(
-                      faculty.university_name_en, 
-                      faculty.university_name_fr, 
-                      faculty.university_name
-                    )}
-                  </p>
+              <div className="card__shine"></div>
+              <div className="card__glow"></div>
+              <div className="card__content">
+                {selectedFacultyId === faculty.id && (
+                  <div className="card__badge">{t('faculty.selected')}</div>
                 )}
+                <div style={{ "--bg-color": "#8b5cf6" } as React.CSSProperties} className="card__image"></div>
+                <div className="card__text">
+                  <p className="card__title">
+                    {getLocalizedText(faculty.name_en, faculty.name_fr, faculty.name)}
+                  </p>
+                  {faculty.university_name && (
+                    <p className="card__description">
+                      {getLocalizedText(
+                        faculty.university_name_en, 
+                        faculty.university_name_fr, 
+                        faculty.university_name
+                      )}
+                    </p>
+                  )}
+                </div>
+                <div className="card__footer">
+                  <div className="card__price">{t('faculty.explore')}</div>
+                  <div className="card__button">
+                    <svg height="16" width="16" viewBox="0 0 24 24">
+                      <path
+                        strokeWidth="2"
+                        stroke="currentColor"
+                        d="M4 12H20M12 4V20"
+                        fill="none"
+                      ></path>
+                    </svg>
+                  </div>
+                </div>
               </div>
-            </Button>
+            </div>
           ))}
         </div>
       </div>

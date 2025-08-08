@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Course, Question, QuestionGroup, QuizSettings as QuizSettingsType } from "@/types";
+import { Course, Question, QuizSettings as QuizSettingsType, QuestionGroup } from "@/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import QuizSettings from "@/components/QuizSettings";
@@ -73,18 +73,12 @@ export default function Quiz() {
     const initializeQuiz = async () => {
       try {
         console.log("Initializing quiz for course:", courseId);
-        // First load course and questions
+        // Load course and questions, but don't check for completed quizzes
         await fetchCourseAndQuestions();
         
-        // Then check for both in-progress and completed quizzes
+        // Only check for in-progress quizzes (not completed ones)
         setTimeout(async () => {
-          // First check for completed quiz
-          const hasCompleted = await checkCompletedQuiz();
-          
-          // If no completed quiz found, check for in-progress
-          if (!hasCompleted) {
-            await checkExistingProgress();
-          }
+          await checkExistingProgress();
         }, 500);
       } catch (error) {
         console.error("Error initializing quiz:", error);
@@ -120,12 +114,37 @@ export default function Quiz() {
       if (!courseId || !user?.id || hasInitializedProgress.current || !quizSettings) return;
       
       hasInitializedProgress.current = true;
-      console.log("Creating initial quiz progress record...");
-      await saveProgressToSupabase(true);
+      
+      try {
+        // First check if there's already an in-progress quiz for this course
+        if (!progressId) {
+          const { data: existingProgress, error } = await supabase
+            .from('quiz_progress')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .eq('is_completed', false)
+            .single();
+            
+          if (existingProgress?.id) {
+            console.log("Found existing progress record with ID:", existingProgress.id);
+            setProgressId(existingProgress.id);
+            // Update the existing record
+            await saveProgressToSupabase(false);
+            return;
+          }
+        }
+        
+        // If we don't have an existing record, create a new one
+        console.log("Creating initial quiz progress record...");
+        await saveProgressToSupabase(true);
+      } catch (error) {
+        console.error("Error in createInitialProgress:", error);
+      }
     };
 
     // If we have quiz settings but no progressId yet, create initial progress
-    if (quizSettings && !progressId && !hasInitializedProgress.current) {
+    if (quizSettings && !hasInitializedProgress.current) {
       createInitialProgress();
     }
   }, [quizSettings, progressId, courseId, user?.id]);
@@ -184,12 +203,17 @@ export default function Quiz() {
     
     try {
       console.log("Checking for completed quiz...");
+      
+      // Get current date in ISO format (for filtering)
+      const currentDate = new Date().toISOString();
+      
       const { data: completedQuiz, error } = await supabase
         .from('quiz_progress')
         .select('*')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
         .eq('is_completed', true)
+        .lt('updated_at', currentDate) // Only get quizzes with dates before now (avoid future dates)
         .order('updated_at', { ascending: false })
         .limit(1)
         .single();
@@ -202,6 +226,16 @@ export default function Quiz() {
       }
 
       if (completedQuiz) {
+        // Check if the completed quiz date is in the future (likely a data error)
+        const completedDate = new Date(completedQuiz.updated_at);
+        const currentDate = new Date();
+        
+        if (completedDate > currentDate) {
+          console.error('Found completed quiz with future date:', completedQuiz);
+          // Don't show dialogs for quizzes with future dates - this is likely an error
+          return false;
+        }
+        
         console.log('Found completed quiz:', completedQuiz);
         setCompletedQuizData(completedQuiz);
         setShowCompletedDialog(true);
@@ -561,25 +595,73 @@ export default function Quiz() {
         
         console.log("Update result:", result);
       } else {
-        console.log("Creating new progress record");
+        console.log("Creating new progress record or updating existing one");
         // For new records, include created_at
         const newProgressData = {
           ...progressData,
           created_at: new Date().toISOString()
         };
         
+        // Use upsert instead of insert to handle duplicate key conflicts
         result = await supabase
           .from('quiz_progress')
-          .insert([newProgressData])
+          .upsert([newProgressData], { 
+            onConflict: 'user_id,course_id',
+            ignoreDuplicates: false  // Update the existing record if found
+          })
           .select();
         
-        console.log("Insert result:", result);
+        console.log("Upsert result:", result);
       }
       
       const { data, error } = result;
     
       if (error) {
         console.error("Error saving/creating progress:", error);
+        
+        // If this is a duplicate key error, try to retrieve the existing record instead
+        if (error.code === '23505' && !progressId) {
+          console.log("Handling duplicate key error - retrieving existing record");
+          
+          try {
+            // Fetch the existing record
+            const { data: existingRecord, error: fetchError } = await supabase
+              .from('quiz_progress')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('course_id', courseId)
+              .eq('is_completed', false)
+              .single();
+              
+            if (fetchError) {
+              console.error("Error fetching existing record:", fetchError);
+              throw error; // Throw the original error if we can't fetch
+            }
+            
+            if (existingRecord) {
+              // Set the progress ID from the existing record
+              setProgressId(existingRecord.id);
+              console.log("Retrieved existing progress ID:", existingRecord.id);
+              
+              // Now try updating this record
+              const { error: updateError } = await supabase
+                .from('quiz_progress')
+                .update(progressData)
+                .eq('id', existingRecord.id);
+                
+              if (updateError) {
+                console.error("Error updating existing record:", updateError);
+                throw updateError;
+              }
+              
+              // Successfully handled the duplicate key issue
+              return true;
+            }
+          } catch (innerError) {
+            console.error("Error handling duplicate key:", innerError);
+          }
+        }
+        
         throw error;
       }
       
@@ -630,56 +712,16 @@ export default function Quiz() {
       
       if (groupsError) throw groupsError;
 
-      // If no groups found, create virtual groups from individual questions
-      if (!groupsData || groupsData.length === 0) {
-        let questionsQuery = supabase
-          .from('questions')
-          .select(`
-            *,
-            options (*)
-          `)
-          .eq('course_id', courseId)
-          .is('group_id', null) // Only fetch questions that aren't in a group
-          .order('order_index', { ascending: true }) // Order by order_index
-          .order('created_at', { ascending: true }); // Fall back to creation date if order_index is null
-          
-        // Apply faculty filter if selected
-        if (facultyId && facultyId !== 'all') {
-          questionsQuery = questionsQuery.eq('faculty_id', facultyId);
-        }
-
-        const { data: standaloneQuestionsData, error: questionsError } = await questionsQuery;
-
-        if (questionsError) throw questionsError;
+      let allGroups = [];
+      let allQuestions = [];
+      
+      // Step 1: Process clinical case groups (if any)
+      if (groupsData && groupsData.length > 0) {
+        // Use the existing groups
+        allGroups = [...groupsData];
         
-        // Use ordered questions instead of shuffling
-        const orderedQuestions = standaloneQuestionsData || [];
-        
-        // Create virtual groups (one question per group)
-        const virtualGroups = orderedQuestions.map((q, i) => ({
-          id: `virtual-group-${q.id}`,
-          title: `Question ${i + 1}`,
-          description: q.text,
-          course_id: courseId || '',
-          faculty_id: q.faculty_id,
-          order_index: i,
-          created_at: new Date().toISOString()
-        }));
-        
-        // Assign each question to its virtual group
-        const questionsWithGroups = orderedQuestions.map((q, i) => ({
-          ...q,
-          group_id: `virtual-group-${q.id}`,
-          order_index: 0 // Only question in the group
-        }));
-        
-        setQuestionGroups(virtualGroups);
-        setQuestions(questionsWithGroups);
-      } else {
-        // We have proper groups, now fetch all questions in those groups
-        setQuestionGroups(groupsData);
-        
-        let questionsQuery = supabase
+        // Fetch questions in these groups
+        let groupedQuestionsQuery = supabase
           .from('questions')
           .select(`
             *,
@@ -687,15 +729,72 @@ export default function Quiz() {
           `)
           .eq('course_id', courseId)
           .in('group_id', groupsData.map(g => g.id))
-          .order('order_index', { ascending: true }) // Order by order_index consistently
-          .order('created_at', { ascending: true }); // Fall back to creation date
+          .order('order_index', { ascending: true })
+          .order('created_at', { ascending: true });
+          
+        if (facultyId && facultyId !== 'all') {
+          groupedQuestionsQuery = groupedQuestionsQuery.eq('faculty_id', facultyId);
+        }
         
-        const { data: questionsData, error: questionsError } = await questionsQuery;
-
-        if (questionsError) throw questionsError;
+        const { data: groupedQuestionsData, error: groupedQuestionsError } = await groupedQuestionsQuery;
         
-        setQuestions(questionsData || []);
+        if (groupedQuestionsError) throw groupedQuestionsError;
+        
+        if (groupedQuestionsData && groupedQuestionsData.length > 0) {
+          allQuestions = [...groupedQuestionsData];
+        }
       }
+      
+      // Step 2: Always fetch standalone questions too (without a group)
+      let standaloneQuestionsQuery = supabase
+        .from('questions')
+        .select(`
+          *,
+          options (*)
+        `)
+        .eq('course_id', courseId)
+        .is('group_id', null) // Only fetch questions that aren't in a group
+        .order('order_index', { ascending: true })
+        .order('created_at', { ascending: true });
+        
+      if (facultyId && facultyId !== 'all') {
+        standaloneQuestionsQuery = standaloneQuestionsQuery.eq('faculty_id', facultyId);
+      }
+      
+      const { data: standaloneQuestionsData, error: standaloneQuestionsError } = await standaloneQuestionsQuery;
+      
+      if (standaloneQuestionsError) throw standaloneQuestionsError;
+      
+      // Step 3: Process standalone questions into virtual groups
+      if (standaloneQuestionsData && standaloneQuestionsData.length > 0) {
+        // Create virtual groups for standalone questions
+        const startIndex = allGroups.length; // Start after existing groups
+        const virtualGroups = standaloneQuestionsData.map((q, i) => ({
+          id: `virtual-group-${q.id}`,
+          title: `Question ${startIndex + i + 1}`,
+          description: q.text,
+          course_id: courseId || '',
+          faculty_id: q.faculty_id,
+          order_index: startIndex + i,
+          created_at: new Date().toISOString(),
+          is_single_question: true // Flag to identify standalone questions
+        }));
+        
+        // Assign each standalone question to its virtual group
+        const questionsWithVirtualGroups = standaloneQuestionsData.map((q) => ({
+          ...q,
+          group_id: `virtual-group-${q.id}`,
+          order_index: 0 // Only question in the group
+        }));
+        
+        // Add to our collections
+        allGroups = [...allGroups, ...virtualGroups];
+        allQuestions = [...allQuestions, ...questionsWithVirtualGroups];
+      }
+      
+      // Set the state with all questions and groups
+      setQuestionGroups(allGroups);
+      setQuestions(allQuestions);
       
       console.log("Questions and groups loaded successfully");
     } catch (error) {
@@ -731,6 +830,7 @@ export default function Quiz() {
     setPartiallyCorrectQuestions(new Set());
     setProgressId(null);
     setCompletedQuizData(null);
+    setQuizSettings(null); // Reset quiz settings to show the settings page
   };
 
   // Handle reviewing a completed quiz
@@ -947,11 +1047,29 @@ export default function Quiz() {
             .update(finalData)
             .eq('id', progressId);
         } else {
-          result = await supabase
+          // Check if there's already a completed quiz record
+          const { data: existingProgress } = await supabase
             .from('quiz_progress')
-            .upsert([finalData], { 
-              onConflict: 'user_id,course_id'
-            });
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+            .single();
+            
+          if (existingProgress?.id) {
+            // Update existing record
+            result = await supabase
+              .from('quiz_progress')
+              .update(finalData)
+              .eq('id', existingProgress.id);
+          } else {
+            // Create new record
+            result = await supabase
+              .from('quiz_progress')
+              .upsert([finalData], { 
+                onConflict: 'user_id,course_id',
+                ignoreDuplicates: false // Update on conflict
+              });
+          }
         }
 
         const { error } = result;
@@ -1181,6 +1299,18 @@ export default function Quiz() {
           questionCount={questions.length}
         />
         
+        {/* Button to check previous attempts */}
+        <div className="flex justify-end mt-4">
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              await checkCompletedQuiz();
+            }}
+          >
+            {t('quiz.viewPreviousAttempts')}
+          </Button>
+        </div>
+        
         {/* Continue dialog for in-progress quizzes */}
         <Dialog 
           open={showContinueDialog} 
@@ -1213,6 +1343,12 @@ export default function Quiz() {
           onOpenChange={(open) => {
             console.log("Completed dialog open state changed:", open);
             setShowCompletedDialog(open);
+            
+            // If dialog is closed by the user clicking outside,
+            // allow them to continue to start a new quiz
+            if (!open) {
+              setQuizSettings(null); // Reset quiz settings to show the settings page
+            }
           }}
         >
           <DialogContent>
@@ -1280,7 +1416,7 @@ export default function Quiz() {
     );
   }
 
-  // The main quiz view with clinical cases
+  // The main quiz view with questions (both standalone and clinical cases)
   return (
     <div className="container mx-auto py-8">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">

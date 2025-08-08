@@ -51,6 +51,8 @@ export interface Year {
     explanation_fr?: string;
     created_at: string;
     options?: Option[];
+    group_id?: string;  // Added for compatibility with clinical cases
+    order_index?: number; // Added for ordering within a group
   }
   
   export interface Option {
@@ -61,6 +63,19 @@ export interface Year {
     text_fr?: string;
     is_correct: boolean;
     created_at: string;
+  }
+  
+  export interface QuestionGroup {
+    id: string;
+    title: string;
+    title_en?: string;
+    title_fr?: string;
+    description?: string;
+    course_id: string;
+    faculty_id?: string;
+    order_index?: number;
+    created_at: string;
+    is_single_question?: boolean; // Flag for standalone questions
   }
   
   export interface UserProgress {

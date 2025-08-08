@@ -1,122 +1,125 @@
-import { Fragment } from "react";
+import { Question, Option } from "@/types";
 import { cn } from "@/lib/utils";
-import { Question } from "@/types";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckIcon, XIcon, AlertTriangleIcon } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage"; // Import if not already used
 
 interface QcmQuestionProps {
   question: Question;
   selectedOptions: string[];
   onOptionSelect: (optionId: string) => void;
-  showResult: boolean;
-  isCorrect: boolean;
+  showResult?: boolean;
+  isCorrect?: boolean;
   isPartiallyCorrect?: boolean;
   isRetryMode?: boolean;
+  currentLanguage: string; // Add this prop
 }
 
 export default function QcmQuestion({
   question,
   selectedOptions,
   onOptionSelect,
-  showResult,
-  isCorrect,
+  showResult = false,
+  isCorrect = false,
   isPartiallyCorrect = false,
-  isRetryMode = false, 
+  isRetryMode = false,
+  currentLanguage = "en" // Default to English
 }: QcmQuestionProps) {
-  if (!question || !question.options) return null;
-  
-  const alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-
-  const getOptionStatus = (optionId: string) => {
-    // Skip showing results during retry mode
-    if (!showResult || isRetryMode) return 'normal';
-    
-    const option = question.options?.find(opt => opt.id === optionId);
-    const isSelected = selectedOptions.includes(optionId);
-    
-    if (option?.is_correct && isSelected) return 'correct';
-    if (option?.is_correct && !isSelected) return 'missed';
-    if (!option?.is_correct && isSelected) return 'wrong';
-    
-    return 'normal';
+  // Get the explanation in the current language
+  const getExplanationText = () => {
+    if (currentLanguage === "fr") {
+      return question.explanation_fr || question.explanation_en || question.explanation || "";
+    }
+    return question.explanation_en || question.explanation_fr || question.explanation || "";
   };
 
+  // Get options properly sorted and localized
+  const getLocalizedOptions = () => {
+    return (question.options || []).map(option => {
+      return {
+        ...option,
+        displayText: currentLanguage === "fr" 
+          ? option.text_fr || option.text_en || option.text 
+          : option.text_en || option.text_fr || option.text
+      };
+    });
+  };
+
+  const options = getLocalizedOptions();
+
   return (
-    <div className="space-y-4">
-      {question.options.map((option, index) => {
-        const isSelected = selectedOptions.includes(option.id);
-        const optionStatus = getOptionStatus(option.id);
-        
-        // Determine if the option is clickable - always allow in retry mode
-        const isClickable = isRetryMode || !showResult;
-        
-        return (
-          <div
-            key={option.id}
-            className={cn(
-              "border-2 rounded-xl overflow-hidden transition-all",
-              isSelected && !showResult && "border-primary",
-              !isSelected && !showResult && "border-gray-100 hover:border-gray-300",
-              // Apply styling based on option status
-              optionStatus === 'correct' && "border-green-500 bg-green-50",
-              optionStatus === 'wrong' && "border-red-500 bg-red-50",
-              optionStatus === 'missed' && "border-yellow-500 bg-yellow-50",
-              optionStatus === 'normal' && isSelected && "border-primary",
-              optionStatus === 'normal' && !isSelected && "border-gray-200",
-              // Add hover effect when clickable
-              isClickable && !isSelected && "hover:border-gray-300",
-            )}
-            onClick={() => {
-              if (isClickable) {
-                onOptionSelect(option.id);
-              }
-            }}
-          >
-            <div className={cn(
-              "p-4 flex items-start gap-3",
-              isClickable ? "cursor-pointer" : "cursor-default"
-            )}>
-              {/* Option Label (A, B, C, etc.) */}
-              <div className={cn(
-                "flex items-center justify-center h-8 w-8 rounded-full shrink-0 font-semibold",
-                isSelected && optionStatus === 'normal' && "bg-primary text-white",
-                !isSelected && optionStatus === 'normal' && "bg-gray-100 text-gray-700",
-                optionStatus === 'correct' && "bg-green-500 text-white",
-                optionStatus === 'wrong' && "bg-red-500 text-white",
-                optionStatus === 'missed' && "bg-yellow-500 text-white",
-              )}>
-                {alphabet[index]}
-              </div>
-              
-              {/* Option Text */}
-              <div className="flex-1">
-                <p className={cn(
-                  "text-gray-800",
-                  optionStatus === 'correct' && "text-green-800",
-                  optionStatus === 'wrong' && "text-red-800",
-                  optionStatus === 'missed' && "text-yellow-800",
-                )}>
-                  {option.text}
-                </p>
-              </div>
-              
-              {/* Result Indicator */}
-              {optionStatus !== 'normal' && (
-                <div className="ml-2">
-                  {optionStatus === 'correct' && <CheckCircle2 className="h-5 w-5 text-green-500" />}
-                  {optionStatus === 'wrong' && <XCircle className="h-5 w-5 text-red-500" />}
-                </div>
+    <div>
+      {/* Options */}
+      <div className="space-y-2">
+        {options.map(option => {
+          const isSelected = selectedOptions.includes(option.id);
+          const isCorrectOption = option.is_correct;
+          const isWrongSelection = isSelected && !isCorrectOption && showResult;
+          
+          return (
+            <div 
+              key={option.id} 
+              className={cn(
+                "border rounded-lg p-3 cursor-pointer",
+                isSelected && "border-primary bg-primary/5",
+                showResult && isCorrectOption && "border-green-500 bg-green-50",
+                isWrongSelection && "border-red-500 bg-red-50",
+                !showResult && "hover:bg-gray-50"
               )}
-            </div>
-            
-            {/* Explanation (shown after answering, but not in retry mode) */}
-            {showResult && !isRetryMode && option.is_correct && question.explanation && (
-              <div className="p-4 bg-gray-50 border-t">
-                <p className="text-sm text-gray-700">{question.explanation}</p>
+              onClick={() => !showResult && onOptionSelect(option.id)}
+            >
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  "mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                  isSelected ? "bg-primary" : "border border-gray-400"
+                )}>
+                  {isSelected && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                </div>
+                <div className="flex-grow">
+                  <p>{option.displayText}</p>
+                </div>
+                {showResult && isCorrectOption && (
+                  <CheckIcon className="text-green-600 h-5 w-5 flex-shrink-0" />
+                )}
+                {isWrongSelection && (
+                  <XIcon className="text-red-600 h-5 w-5 flex-shrink-0" />
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Explanation when showing results */}
+      {showResult && getExplanationText() && (
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+          <h5 className="font-medium mb-1">Explanation:</h5>
+          <p>{getExplanationText()}</p>
+        </div>
+      )}
+
+      {/* Result indicator */}
+      {showResult && (
+        <div className="mt-4 flex items-center">
+          {isCorrect && (
+            <div className="flex items-center text-green-600">
+              <CheckIcon className="mr-1 h-4 w-4" />
+              <span className="font-medium">Correct</span>
+            </div>
+          )}
+          {isPartiallyCorrect && (
+            <div className="flex items-center text-yellow-600">
+              <AlertTriangleIcon className="mr-1 h-4 w-4" />
+              <span className="font-medium">Partially Correct</span>
+            </div>
+          )}
+          {!isCorrect && !isPartiallyCorrect && (
+            <div className="flex items-center text-red-600">
+              <XIcon className="mr-1 h-4 w-4" />
+              <span className="font-medium">Incorrect</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
